@@ -21,7 +21,7 @@ enum Main {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let arrowHeight: CGFloat = 12
+    private let menuBarGap: CGFloat = 1
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let store = TabStore()
     private let logger = Logger(subsystem: "com.notebloat.app", category: "popover")
@@ -109,7 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.contentViewController = NSHostingController(
-            rootView: PopoverWindowContent(arrowHeight: arrowHeight)
+            rootView: ContentView()
                 .environmentObject(store)
         )
         self.panel = panel
@@ -126,7 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func windowSize() -> NSSize {
         let contentSize = currentPopoverSize()
-        return NSSize(width: contentSize.width, height: contentSize.height + arrowHeight)
+        return contentSize
     }
 
     private var isPinned: Bool {
@@ -165,7 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let buttonFrameOnScreen = buttonWindow.convertToScreen(buttonFrameInWindow)
         var origin = NSPoint(
             x: buttonFrameOnScreen.midX - (size.width / 2),
-            y: buttonFrameOnScreen.minY - size.height - 6
+            y: buttonFrameOnScreen.minY - size.height - menuBarGap
         )
 
         if let screen = buttonWindow.screen ?? NSScreen.main {
@@ -207,38 +207,3 @@ final class NotebloatPanel: NSPanel {
     override var canBecomeMain: Bool { true }
 }
 
-struct PopoverWindowContent: View {
-    let arrowHeight: CGFloat
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Triangle()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Triangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.12), Color.black.opacity(0.22)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                )
-                .frame(width: 28, height: arrowHeight)
-
-            ContentView()
-        }
-        .background(Color.clear)
-    }
-}
-
-struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.closeSubpath()
-        return path
-    }
-}
