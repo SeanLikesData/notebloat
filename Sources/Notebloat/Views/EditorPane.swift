@@ -15,7 +15,8 @@ struct EditorPane: View {
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(NotebloatStyle.editorBackground))
+                    .background(RoundedRectangle(cornerRadius: 12).fill(NotebloatStyle.editorBackground))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(NotebloatStyle.controlStroke, lineWidth: 1))
                     .padding(10)
                     .focused($editorFocused)
                     .onAppear { editorFocused = true }

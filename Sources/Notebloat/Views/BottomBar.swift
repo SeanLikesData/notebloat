@@ -25,7 +25,8 @@ struct BottomBar: View {
                 .lineLimit(1)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 7).fill(NotebloatStyle.editorBackground))
+                .background(RoundedRectangle(cornerRadius: 8).fill(NotebloatStyle.editorBackground))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(NotebloatStyle.controlStroke, lineWidth: 1))
             Spacer()
 
             menu
@@ -98,7 +99,8 @@ struct BottomBar: View {
             Image(systemName: "ellipsis")
                 .font(.system(size: 13, weight: .semibold))
                 .frame(width: 28, height: 22)
-                .background(RoundedRectangle(cornerRadius: 6).fill(NotebloatStyle.controlBackground))
+                .background(RoundedRectangle(cornerRadius: 8).fill(NotebloatStyle.controlBackground))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(NotebloatStyle.controlStroke, lineWidth: 1))
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)

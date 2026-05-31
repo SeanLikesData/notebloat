@@ -29,7 +29,8 @@ struct TabBarView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 12, weight: .semibold))
                     .frame(width: 28, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(NotebloatStyle.controlBackground))
+                    .background(RoundedRectangle(cornerRadius: 8).fill(NotebloatStyle.controlBackground))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(NotebloatStyle.controlStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
             .help("New tab")
@@ -51,8 +52,12 @@ struct TabBarView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
                 .background(
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(isActive ? NotebloatStyle.activeControlBackground : NotebloatStyle.controlBackground.opacity(0.5))
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(isActive ? NotebloatStyle.activeControlBackground : NotebloatStyle.controlBackground.opacity(0.55))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9)
+                        .stroke(isActive ? NotebloatStyle.activeControlStroke : NotebloatStyle.controlStroke, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)

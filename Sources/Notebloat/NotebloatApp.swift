@@ -181,11 +181,20 @@ struct PopoverWindowContent: View {
     var body: some View {
         VStack(spacing: 0) {
             Triangle()
-                .fill(NotebloatStyle.panelBackground)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Triangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.12), Color.black.opacity(0.22)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                )
                 .frame(width: 28, height: arrowHeight)
 
             ContentView()
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .background(Color.clear)
     }

@@ -28,8 +28,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            NotebloatStyle.panelBackground
-                .ignoresSafeArea()
+            NotebloatStyle.panelMaterial
 
             VStack(spacing: 0) {
                 TabBarView(
@@ -37,9 +36,9 @@ struct ContentView: View {
                     onRename: { renamingTab = $0 },
                     onDelete: { deletingTab = $0 }
                 )
-                Divider().opacity(0.4)
+                NotebloatStyle.divider
                 EditorPane(font: editorFont)
-                Divider().opacity(0.4)
+                NotebloatStyle.divider
                 BottomBar(
                     onSettings: { showingSettings = true },
                     onRenameActive: { renamingTab = store.activeTab },
@@ -104,12 +103,61 @@ struct ContentView: View {
         }
         .preferredColorScheme(colorScheme)
         .frame(width: popoverSize.width, height: popoverSize.height)
+        .clipShape(RoundedRectangle(cornerRadius: NotebloatStyle.panelCornerRadius, style: .continuous))
+        .overlay(NotebloatStyle.panelBorder)
     }
 }
 
 enum NotebloatStyle {
-    static let panelBackground = Color(nsColor: .windowBackgroundColor).opacity(0.92)
-    static let controlBackground = Color.primary.opacity(0.12)
-    static let activeControlBackground = Color.primary.opacity(0.20)
-    static let editorBackground = Color.primary.opacity(0.06)
+    static let panelCornerRadius: CGFloat = 18
+
+    static var panelMaterial: some View {
+        ZStack {
+            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow, state: .active)
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.10),
+                    Color.black.opacity(0.18),
+                    Color.black.opacity(0.32)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            RadialGradient(
+                colors: [Color.white.opacity(0.10), Color.clear],
+                center: .topLeading,
+                startRadius: 0,
+                endRadius: 260
+            )
+        }
+    }
+
+    static var panelBorder: some View {
+        RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+            .strokeBorder(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.32),
+                        Color.white.opacity(0.12),
+                        Color.black.opacity(0.22)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 1
+            )
+    }
+
+    static var divider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.10))
+            .frame(height: 1)
+            .overlay(Rectangle().fill(Color.black.opacity(0.12)).offset(y: 1))
+    }
+
+    static let controlBackground = Color.white.opacity(0.10)
+    static let activeControlBackground = Color.white.opacity(0.22)
+    static let editorBackground = Color.black.opacity(0.14)
+    static let controlStroke = Color.white.opacity(0.14)
+    static let activeControlStroke = Color.white.opacity(0.28)
 }
