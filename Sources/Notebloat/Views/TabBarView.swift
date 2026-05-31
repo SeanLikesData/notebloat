@@ -106,6 +106,10 @@ private struct TabDropDelegate: DropDelegate {
         store.moveTab(draggedTabID, before: targetTab.id)
     }
 
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
     func performDrop(info: DropInfo) -> Bool {
         draggedTabID = nil
         return true
