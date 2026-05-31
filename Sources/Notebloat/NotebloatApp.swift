@@ -22,7 +22,7 @@ enum Main {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let menuBarGap: CGFloat = 1
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let store = TabStore()
     private let logger = Logger(subsystem: "com.notebloat.app", category: "popover")
 
@@ -33,6 +33,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let button = statusItem.button {
             button.image = StatusIcon.notebloat
+            button.imagePosition = .imageOnly
+            button.alignment = .center
             button.action = #selector(togglePopover)
             button.target = self
         }

@@ -17,23 +17,23 @@ enum StatusIcon {
         NSColor.black.setStroke()
         NSColor.black.setFill()
 
-        let body = NSBezierPath(roundedRect: NSRect(x: 3.0, y: 2.5, width: 12.0, height: 13.0), xRadius: 3.0, yRadius: 3.0)
+        let body = NSBezierPath(roundedRect: NSRect(x: 3.6, y: 2.5, width: 12.0, height: 13.0), xRadius: 3.0, yRadius: 3.0)
         body.lineWidth = 1.7
         body.stroke()
 
         let fold = NSBezierPath()
-        fold.move(to: NSPoint(x: 11.0, y: 15.5))
-        fold.line(to: NSPoint(x: 15.0, y: 11.5))
-        fold.line(to: NSPoint(x: 11.0, y: 11.5))
+        fold.move(to: NSPoint(x: 11.6, y: 15.5))
+        fold.line(to: NSPoint(x: 15.6, y: 11.5))
+        fold.line(to: NSPoint(x: 11.6, y: 11.5))
         fold.close()
         fold.lineWidth = 1.25
         fold.stroke()
 
-        drawLine(from: NSPoint(x: 6.0, y: 11.2), to: NSPoint(x: 10.0, y: 11.2))
-        drawLine(from: NSPoint(x: 6.0, y: 8.6), to: NSPoint(x: 12.0, y: 8.6))
-        drawLine(from: NSPoint(x: 6.0, y: 6.0), to: NSPoint(x: 10.4, y: 6.0))
+        drawLine(from: NSPoint(x: 6.6, y: 11.2), to: NSPoint(x: 10.6, y: 11.2))
+        drawLine(from: NSPoint(x: 6.6, y: 8.6), to: NSPoint(x: 12.6, y: 8.6))
+        drawLine(from: NSPoint(x: 6.6, y: 6.0), to: NSPoint(x: 11.0, y: 6.0))
 
-        let dot = NSBezierPath(ovalIn: NSRect(x: 11.5, y: 4.4, width: 3.0, height: 3.0))
+        let dot = NSBezierPath(ovalIn: NSRect(x: 12.1, y: 4.4, width: 3.0, height: 3.0))
         dot.fill()
 
         image.isTemplate = true
