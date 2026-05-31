@@ -1,15 +1,13 @@
 import SwiftUI
 import AppKit
 
-/// The bottom bar: a "+" to add a tab, the live character/word counter, and
-/// the "•••" menu.
+/// The bottom bar: the live character/word counter and the "•••" menu.
 struct BottomBar: View {
     @EnvironmentObject private var store: TabStore
     @AppStorage(SettingsKey.fontSize) private var fontRaw = FontSize.medium.rawValue
     @AppStorage(SettingsKey.popoverSize) private var popoverRaw = PopoverSize.medium.rawValue
     @AppStorage(SettingsKey.pinned) private var pinned = false
 
-    let onNewTab: () -> Void
     let onSettings: () -> Void
     let onRenameActive: () -> Void
     let onDeleteActive: () -> Void
@@ -20,9 +18,6 @@ struct BottomBar: View {
 
     var body: some View {
         HStack {
-            iconButton(systemName: "plus", help: "New tab", action: onNewTab)
-                .keyboardShortcut("n", modifiers: .command)
-
             Spacer()
             Text(stats)
                 .font(.system(size: 11))
@@ -110,14 +105,4 @@ struct BottomBar: View {
         .fixedSize()
     }
 
-    private func iconButton(systemName: String, help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 12, weight: .semibold))
-                .frame(width: 28, height: 22)
-                .background(RoundedRectangle(cornerRadius: 6).fill(NotebloatStyle.controlBackground))
-        }
-        .buttonStyle(.plain)
-        .help(help)
-    }
 }

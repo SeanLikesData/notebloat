@@ -123,6 +123,18 @@ final class TabStore: ObservableObject {
         saveNow()
     }
 
+    func moveTab(_ draggedID: UUID, before targetID: UUID) {
+        guard draggedID != targetID,
+              let sourceIndex = tabs.firstIndex(where: { $0.id == draggedID }),
+              let targetIndex = tabs.firstIndex(where: { $0.id == targetID })
+        else { return }
+
+        let draggedTab = tabs.remove(at: sourceIndex)
+        let insertionIndex = min(targetIndex, tabs.count)
+        tabs.insert(draggedTab, at: insertionIndex)
+        saveNow()
+    }
+
     func flushPendingSave() {
         saveTask?.cancel()
         saveTask = nil

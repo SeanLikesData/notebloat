@@ -5,6 +5,7 @@ enum NotebloatModelTests {
     static func main() async throws {
         try await testFirstLaunchCreatesDefaultTabs()
         try await testAddSelectRenameDeleteAndPersistence()
+        try await testMoveTab()
         try await testTextStats()
         print("All Notebloat model tests passed.")
     }
@@ -42,6 +43,24 @@ enum NotebloatModelTests {
                 reloaded.delete(docsID)
             }
             expect(!reloaded.tabs.isEmpty, "deleting a tab never leaves zero tabs")
+        }
+    }
+
+    private static func testMoveTab() async throws {
+        let directory = try freshTemporaryDirectory(named: "move-tab")
+        let store = await MainActor.run { TabStore(directoryURL: directory) }
+
+        await MainActor.run {
+            let first = store.tabs[0].id
+            let second = store.tabs[1].id
+            store.addTab(named: "Docs")
+            let third = store.tabs[2].id
+
+            store.moveTab(first, before: third)
+            expect(store.tabs.map(\.name) == ["Work", "Docs", "Personal"], "dragging right can move a tab to the end")
+
+            store.moveTab(third, before: second)
+            expect(store.tabs.map(\.name) == ["Docs", "Work", "Personal"], "dragging left can move a tab before the target")
         }
     }
 

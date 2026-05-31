@@ -1,11 +1,15 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// The tab strip across the top. Tabs scroll horizontally; the trailing
-/// chevron opens a menu listing every tab with a checkmark on the active one,
-/// plus a shortcut to create a new tab.
+/// The tab strip across the top. Tabs scroll horizontally. The trailing plus
+/// creates a new tab because tab creation belongs next to the tabs.
 struct TabBarView: View {
     @EnvironmentObject private var store: TabStore
     let onNewTab: () -> Void
+    let onRename: (TabItem) -> Void
+    let onDelete: (TabItem) -> Void
+
+    @State private var draggedTabID: UUID?
 
     var body: some View {
         HStack(spacing: 6) {
@@ -21,30 +25,15 @@ struct TabBarView: View {
 
             Spacer(minLength: 0)
 
-            Menu {
-                ForEach(store.tabs) { tab in
-                    Button {
-                        store.select(tab.id)
-                    } label: {
-                        if tab.id == store.activeID {
-                            Label(tab.name, systemImage: "checkmark")
-                        } else {
-                            Text(tab.name)
-                        }
-                    }
-                }
-                Divider()
-                Button("New Tab…", action: onNewTab)
-                    .keyboardShortcut("n", modifiers: .command)
-            } label: {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .semibold))
+            Button(action: onNewTab) {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .semibold))
                     .frame(width: 28, height: 22)
                     .background(RoundedRectangle(cornerRadius: 6).fill(NotebloatStyle.controlBackground))
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
+            .buttonStyle(.plain)
+            .help("New tab")
+            .keyboardShortcut("n", modifiers: .command)
             .padding(.trailing, 10)
         }
     }
@@ -67,6 +56,59 @@ struct TabBarView: View {
                 )
         }
         .buttonStyle(.plain)
-        .help(tab.name)
+        .opacity(draggedTabID == tab.id ? 0.45 : 1)
+        .help("\(tab.name). Double-click to rename. Drag to reorder.")
+        .simultaneousGesture(
+            TapGesture(count: 2).onEnded {
+                onRename(tab)
+            }
+        )
+        .contextMenu {
+            Button("Rename…") { onRename(tab) }
+            Button("Duplicate") { duplicate(tab) }
+            Button(role: .destructive) { onDelete(tab) } label: { Text("Delete…") }
+        }
+        .onDrag {
+            draggedTabID = tab.id
+            return NSItemProvider(object: tab.id.uuidString as NSString)
+        }
+        .onDrop(
+            of: [UTType.text.identifier],
+            delegate: TabDropDelegate(
+                targetTab: tab,
+                draggedTabID: $draggedTabID,
+                store: store
+            )
+        )
+    }
+
+    private func duplicate(_ tab: TabItem) {
+        let duplicate = store.addTab(named: tab.name)
+        if let index = store.tabs.firstIndex(where: { $0.id == duplicate.id }) {
+            store.tabs[index].content = tab.content
+            store.flushPendingSave()
+        }
+    }
+}
+
+private struct TabDropDelegate: DropDelegate {
+    let targetTab: TabItem
+    @Binding var draggedTabID: UUID?
+    let store: TabStore
+
+    func dropEntered(info: DropInfo) {
+        guard let draggedTabID else { return }
+        store.moveTab(draggedTabID, before: targetTab.id)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggedTabID = nil
+        return true
+    }
+
+    func dropExited(info: DropInfo) {
+        if !info.hasItemsConforming(to: [UTType.text.identifier]) {
+            draggedTabID = nil
+        }
     }
 }

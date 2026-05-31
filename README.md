@@ -28,6 +28,9 @@ The design goal is simple:
 - Light, dark, and system theme settings.
 - Small, medium, and large editor font settings.
 - Small, medium, and large popover size settings.
+- Create tabs from the top-right plus button next to the tab strip.
+- Rename tabs by double-clicking a tab, using the tab context menu, or using the actions menu.
+- Drag tabs to reorder them.
 - Create, rename, delete, and switch tabs from the user interface.
 - Duplicate tab names are made unique automatically.
 - Delete confirmation before a tab is removed.
@@ -182,7 +185,6 @@ Persistence is handled by `TabStore`. The store keeps the active tab, the tab li
 
 - Custom application icon.
 - Markdown export.
-- Tab reordering.
 - Optional global keyboard shortcut to open the popover.
 - Search across tabs.
 - Encrypted local storage option.

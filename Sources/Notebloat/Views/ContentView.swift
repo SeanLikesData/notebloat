@@ -32,12 +32,15 @@ struct ContentView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                TabBarView(onNewTab: { showingNewTab = true })
+                TabBarView(
+                    onNewTab: { showingNewTab = true },
+                    onRename: { renamingTab = $0 },
+                    onDelete: { deletingTab = $0 }
+                )
                 Divider().opacity(0.4)
                 EditorPane(font: editorFont)
                 Divider().opacity(0.4)
                 BottomBar(
-                    onNewTab: { showingNewTab = true },
                     onSettings: { showingSettings = true },
                     onRenameActive: { renamingTab = store.activeTab },
                     onDeleteActive: { deletingTab = store.activeTab }
