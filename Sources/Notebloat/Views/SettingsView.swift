@@ -4,8 +4,8 @@ import AppKit
 import UniformTypeIdentifiers
 import os
 
-/// The Settings panel. A centered card over a dimmed background with theme,
-/// font size, popover size, launch-at-login, import, and export controls.
+/// The Settings panel. A centered card over a dimmed background with grouped
+/// appearance, behavior, and local data controls.
 struct SettingsSheet: View {
     @EnvironmentObject private var store: TabStore
     @AppStorage(SettingsKey.theme) private var themeRaw = AppTheme.system.rawValue
@@ -24,7 +24,7 @@ struct SettingsSheet: View {
                 .ignoresSafeArea()
                 .onTapGesture(perform: onClose)
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Text("Settings").font(.headline)
                     Spacer()
@@ -35,67 +35,90 @@ struct SettingsSheet: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.bottom, 14)
 
-                row("Theme") {
-                    Picker("", selection: $themeRaw) {
-                        ForEach(AppTheme.allCases) { Text($0.label).tag($0.rawValue) }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 160)
-                }
-                divider
-                row("Font size") {
-                    Picker("", selection: $fontRaw) {
-                        ForEach(FontSize.allCases) { Text($0.label).tag($0.rawValue) }
-                    }
-                    .labelsHidden()
-                    .frame(width: 110)
-                }
-                divider
-                row("Popover size") {
-                    Picker("", selection: $popoverRaw) {
-                        ForEach(PopoverSize.allCases) { Text($0.label).tag($0.rawValue) }
-                    }
-                    .labelsHidden()
-                    .frame(width: 110)
-                }
-                divider
-                HStack {
-                    Text("Launch at login")
-                    Spacer()
-                    Toggle("", isOn: $launchAtLogin)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .onChange(of: launchAtLogin) { _, newValue in
-                            applyLaunchAtLogin(newValue)
+                section("Appearance") {
+                    row("Theme") {
+                        Picker("", selection: $themeRaw) {
+                            ForEach(AppTheme.allCases) { Text($0.label).tag($0.rawValue) }
                         }
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
+                        .frame(width: 160)
+                    }
+                    divider
+                    row("Font size") {
+                        Picker("", selection: $fontRaw) {
+                            ForEach(FontSize.allCases) { Text($0.label).tag($0.rawValue) }
+                        }
+                        .labelsHidden()
+                        .frame(width: 110)
+                    }
+                    divider
+                    row("Popover size") {
+                        Picker("", selection: $popoverRaw) {
+                            ForEach(PopoverSize.allCases) { Text($0.label).tag($0.rawValue) }
+                        }
+                        .labelsHidden()
+                        .frame(width: 110)
+                    }
                 }
-                .padding(.vertical, 8)
-                divider
-                HStack(spacing: 10) {
-                    Button("Export Notes…", action: exportNotes)
-                    Button("Import Notes…", action: importNotes)
+
+                section("Behavior") {
+                    HStack {
+                        Text("Launch at login")
+                        Spacer()
+                        Toggle("", isOn: $launchAtLogin)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .onChange(of: launchAtLogin) { _, newValue in
+                                applyLaunchAtLogin(newValue)
+                            }
+                    }
+                    .padding(.vertical, 8)
                 }
-                .padding(.vertical, 8)
+
+                section("Data") {
+                    Text("Notes are stored locally on this Mac.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 6)
+
+                    HStack(spacing: 8) {
+                        Button("Reveal in Finder", action: store.revealNotesInFinder)
+                        Button("Export…", action: exportNotes)
+                        Button("Import…", action: importNotes)
+                    }
+                    .buttonStyle(.borderless)
+                }
 
                 if let settingsMessage {
                     Text(settingsMessage)
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 8)
                 }
             }
             .font(.system(size: 13))
             .padding(18)
-            .frame(width: 320)
+            .frame(width: 340)
             .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.1)))
             .onAppear {
                 launchAtLogin = (SMAppService.mainApp.status == .enabled)
             }
+        }
+    }
+
+    private func section<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 4)
+            content()
         }
     }
 

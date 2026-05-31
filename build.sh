@@ -47,6 +47,9 @@ swiftc \
     $SOURCES \
     -o "$MACOS_DIR/$APP_NAME"
 
+echo "==> Copying resources"
+cp Resources/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
+
 echo "==> Writing Info.plist"
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -67,6 +70,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
     <string>$VERSION</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSPrincipalClass</key>

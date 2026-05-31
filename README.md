@@ -23,6 +23,7 @@ The design goal is simple:
 - Named tabs across the top of the popover.
 - One free-form text editor per tab.
 - Automatic local saving while typing.
+- Save status indicator in the bottom bar.
 - Character and word counter in the bottom bar.
 - Pinned mode so the popover can stay open while you use other windows.
 - Light, dark, and system theme settings.
@@ -35,7 +36,8 @@ The design goal is simple:
 - Duplicate tab names are made unique automatically.
 - Delete confirmation before a tab is removed.
 - Import and export as JSON.
-- Daily local backups.
+- Reveal notes in Finder from Settings.
+- Daily local backups with retention for the latest 30 backup files.
 - Corrupt JSON recovery.
 - Launch-at-login setting for signed installed builds.
 
@@ -44,10 +46,6 @@ The design goal is simple:
 ### Main popover
 
 ![Main popover](design/main-popover.png)
-
-### Tab overflow menu
-
-![Tab overflow menu](design/tab-overflow.png)
 
 ### Actions menu
 
@@ -92,6 +90,12 @@ Run a build smoke test:
 ./scripts/smoke-test.sh
 ```
 
+Create a release zip:
+
+```sh
+./scripts/package-release.sh
+```
+
 The smoke test verifies that the application bundle is assembled and that `LSUIElement` is enabled.
 
 ## Data storage
@@ -118,7 +122,7 @@ Recovery file name pattern:
 tabs.corrupt-YYYY-MM-DD-HHMMSS.json
 ```
 
-The notes file is plain JSON. Deleting it resets the application notes.
+The notes file is plain JSON. Deleting it resets the application notes. Settings includes a **Reveal in Finder** button for the notes file.
 
 ## Privacy
 
@@ -147,9 +151,9 @@ Sources/Notebloat/
   Models/
     AppSettings.swift       Theme, font size, popover size enums, and settings keys
     Note.swift              TabItem: one tab with name and text content
-    NoteStore.swift         TabStore: tabs, selection, JSON persistence, import, export
+    NoteStore.swift         TabStore: tabs, selection, save status, JSON persistence, import, export
   Views/
-    BottomBar.swift         The bottom bar with add, counter, and actions menu
+    BottomBar.swift         The bottom bar with counter, save status, and actions menu
     ContentView.swift       Main popover layout and overlays
     EditorPane.swift        Text area for the active tab
     NameDialog.swift        Create, rename, and delete confirmation cards
@@ -160,6 +164,7 @@ Sources/Notebloat/
 Tests/
   NotebloatModelTests.swift Lightweight model tests compiled by scripts/test-models.sh
 scripts/
+  package-release.sh        Builds the application and creates build/Notebloat.zip
   smoke-test.sh             Builds the application and verifies the bundle shape
   test-models.sh            Compiles and runs model tests without Swift Package Manager
 ```
@@ -168,7 +173,7 @@ scripts/
 
 Notebloat uses AppKit for the menu bar item and popover lifecycle. The popover content itself is SwiftUI.
 
-This split is intentional. SwiftUI `MenuBarExtra` was less reliable in this local build setup when launched as an accessory application. `NSStatusItem` and `NSPopover` give direct control over showing, hiding, pinning, and cleanup behavior.
+This split is intentional. SwiftUI `MenuBarExtra` was less reliable in this local build setup when launched as an accessory application. `NSStatusItem` opens a custom borderless `NSPanel` that hosts SwiftUI. The custom panel gives direct control over positioning, hiding, pinning, and cleanup behavior.
 
 Persistence is handled by `TabStore`. The store keeps the active tab, the tab list, and all tab content. It writes a versioned JSON file to Application Support. Text edits are saved with a short debounce so normal typing does not write the full file on every keystroke.
 
@@ -178,12 +183,10 @@ Persistence is handled by `TabStore`. The store keeps the active tab, the tab li
 - Launch at login works reliably for signed installed builds. macOS may reject it for local ad-hoc builds.
 - There is no cloud sync.
 - There is no rich text support.
-- There is no application icon asset yet. The menu bar icon uses a system symbol.
 - A distributable release should use Developer ID signing and notarization.
 
 ## Roadmap ideas
 
-- Custom application icon.
 - Markdown export.
 - Optional global keyboard shortcut to open the popover.
 - Search across tabs.

@@ -108,6 +108,30 @@ struct ContentView: View {
     }
 }
 
+struct GlassPillModifier: ViewModifier {
+    @State private var hovering = false
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(hovering ? NotebloatStyle.controlHoverBackground : NotebloatStyle.controlBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(hovering ? NotebloatStyle.activeControlStroke : NotebloatStyle.controlStroke, lineWidth: 1)
+            )
+            .onHover { hovering = $0 }
+    }
+}
+
+extension View {
+    func glassPill(cornerRadius: CGFloat) -> some View {
+        modifier(GlassPillModifier(cornerRadius: cornerRadius))
+    }
+}
+
 enum NotebloatStyle {
     static let panelCornerRadius: CGFloat = 18
 
@@ -156,6 +180,7 @@ enum NotebloatStyle {
     }
 
     static let controlBackground = Color.white.opacity(0.10)
+    static let controlHoverBackground = Color.white.opacity(0.16)
     static let activeControlBackground = Color.white.opacity(0.22)
     static let editorBackground = Color.black.opacity(0.14)
     static let controlStroke = Color.white.opacity(0.14)

@@ -6,6 +6,9 @@ enum NotebloatModelTests {
         try await testFirstLaunchCreatesDefaultTabs()
         try await testAddSelectRenameDeleteAndPersistence()
         try await testMoveTab()
+        try await testImportExport()
+        try await testCorruptFileRecovery()
+        try await testBackupRetention()
         try await testTextStats()
         print("All Notebloat model tests passed.")
     }
@@ -62,6 +65,62 @@ enum NotebloatModelTests {
             store.moveTab(third, before: second)
             expect(store.tabs.map(\.name) == ["Docs", "Work", "Personal"], "dragging left can move a tab before the target")
         }
+    }
+
+    private static func testImportExport() async throws {
+        let directory = try freshTemporaryDirectory(named: "import-export")
+        let store = await MainActor.run { TabStore(directoryURL: directory) }
+        let exportURL = directory.appendingPathComponent("export.json")
+
+        try await MainActor.run {
+            let tab = store.addTab(named: "Imported")
+            if let index = store.tabs.firstIndex(where: { $0.id == tab.id }) {
+                store.tabs[index].content = "hello import export"
+            }
+            store.flushPendingSave()
+            try store.exportNotes(to: exportURL)
+        }
+
+        let importDirectory = try freshTemporaryDirectory(named: "import-target")
+        let imported = await MainActor.run { TabStore(directoryURL: importDirectory) }
+        try await MainActor.run {
+            try imported.importNotes(from: exportURL)
+            expect(imported.tabs.contains(where: { $0.name == "Imported" && $0.content == "hello import export" }), "import restores exported notes")
+        }
+    }
+
+    private static func testCorruptFileRecovery() async throws {
+        let directory = try freshTemporaryDirectory(named: "corrupt")
+        try "not json".write(to: directory.appendingPathComponent("tabs.json"), atomically: true, encoding: .utf8)
+
+        let store = await MainActor.run { TabStore(directoryURL: directory) }
+        let files = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+
+        await MainActor.run {
+            expect(store.persistenceError != nil, "corrupt file creates an error message")
+            expect(store.tabs.map(\.name) == ["Personal", "Work"], "corrupt file falls back to default tabs")
+        }
+        expect(files.contains(where: { $0.hasPrefix("tabs.corrupt-") }), "corrupt file is moved aside")
+    }
+
+    private static func testBackupRetention() async throws {
+        let directory = try freshTemporaryDirectory(named: "backup-retention")
+        let backupDirectory = directory.appendingPathComponent("Backups", isDirectory: true)
+        try FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+
+        for day in 1...35 {
+            let backup = backupDirectory.appendingPathComponent(String(format: "tabs-2026-05-%02d.json", day))
+            try "{}".write(to: backup, atomically: true, encoding: .utf8)
+            let date = Date(timeIntervalSince1970: TimeInterval(day))
+            try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: backup.path)
+        }
+
+        let store = await MainActor.run { TabStore(directoryURL: directory) }
+        await MainActor.run { store.flushPendingSave() }
+
+        let remaining = try FileManager.default.contentsOfDirectory(atPath: backupDirectory.path)
+            .filter { $0.hasPrefix("tabs-") && $0.hasSuffix(".json") }
+        expect(remaining.count <= 30, "backup retention keeps at most 30 backup files")
     }
 
     private static func testTextStats() async throws {

@@ -1,14 +1,31 @@
 import SwiftUI
+import AppKit
 import os
 
 /// Holds every tab and the current selection, and persists them to a JSON
 /// file in Application Support. The single source of truth for note data.
 @MainActor
 final class TabStore: ObservableObject {
+    enum SaveState: Equatable {
+        case saved(Date)
+        case saving
+        case failed(String)
+
+        var label: String {
+            switch self {
+            case .saved: "Saved"
+            case .saving: "Saving…"
+            case .failed: "Save failed"
+            }
+        }
+    }
+
     @Published var tabs: [TabItem] = []
     @Published var activeID: UUID?
     @Published var persistenceError: String?
+    @Published var saveState: SaveState = .saved(Date())
 
+    let directoryURL: URL
     private let fileURL: URL
     private let logger = Logger(subsystem: "com.notebloat.app", category: "persistence")
     private var saveTask: Task<Void, Never>?
@@ -21,23 +38,46 @@ final class TabStore: ObservableObject {
 
     convenience init() {
         let fileManager = FileManager.default
-        let base = try? fileManager.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        let directory = (base ?? fileManager.temporaryDirectory)
-            .appendingPathComponent("Notebloat", isDirectory: true)
+        let directory: URL
+
+        do {
+            let base = try fileManager.url(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            )
+            directory = base.appendingPathComponent("Notebloat", isDirectory: true)
+        } catch {
+            let fallback = fileManager.temporaryDirectory.appendingPathComponent("Notebloat", isDirectory: true)
+            self.init(
+                directoryURL: fallback,
+                startupError: "Application Support could not be opened. Notes are using temporary storage for this launch. \(error.localizedDescription)"
+            )
+            return
+        }
+
         self.init(directoryURL: directory)
     }
 
-    init(directoryURL: URL) {
-        let fileManager = FileManager.default
-        try? fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    init(directoryURL: URL, startupError: String? = nil) {
+        self.directoryURL = directoryURL
         self.fileURL = directoryURL.appendingPathComponent("tabs.json")
 
+        do {
+            try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        } catch {
+            persistenceError = "The notes folder could not be created. \(error.localizedDescription)"
+            saveState = .failed(error.localizedDescription)
+        }
+
+        if let startupError {
+            persistenceError = startupError
+            saveState = .failed(startupError)
+        }
+
         load()
+        let loadWarning = persistenceError
 
         // First launch: seed the two tabs shown in the design.
         if tabs.isEmpty {
@@ -50,6 +90,10 @@ final class TabStore: ObservableObject {
         if activeID == nil || !tabs.contains(where: { $0.id == activeID }) {
             activeID = tabs.first?.id
             saveNow()
+        }
+        if let loadWarning {
+            persistenceError = loadWarning
+            saveState = .failed(loadWarning)
         }
     }
 
@@ -157,6 +201,10 @@ final class TabStore: ObservableObject {
         saveNow()
     }
 
+    func revealNotesInFinder() {
+        NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+    }
+
     // MARK: - Persistence
 
     private func load() {
@@ -176,6 +224,7 @@ final class TabStore: ObservableObject {
 
     private func scheduleSave() {
         saveTask?.cancel()
+        saveState = .saving
         saveTask = Task { @MainActor [weak self] in
             do {
                 try await Task.sleep(for: .milliseconds(400))
@@ -190,18 +239,23 @@ final class TabStore: ObservableObject {
     private func saveNow() {
         saveTask?.cancel()
         saveTask = nil
+        saveState = .saving
 
         do {
             try createDailyBackupIfNeeded()
+            try pruneOldBackups(keeping: 30)
             let snapshot = Persisted(tabs: tabs, activeID: activeID)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try encoder.encode(snapshot)
             try data.write(to: fileURL, options: [.atomic])
             persistenceError = nil
+            saveState = .saved(Date())
         } catch {
             logger.error("Failed to save tabs: \(error.localizedDescription, privacy: .public)")
-            persistenceError = "Notes could not be saved. \(error.localizedDescription)"
+            let message = "Notes could not be saved. \(error.localizedDescription)"
+            persistenceError = message
+            saveState = .failed(message)
         }
     }
 
@@ -218,6 +272,9 @@ final class TabStore: ObservableObject {
         } catch {
             persistenceError = "The notes file could not be read, and recovery failed. \(error.localizedDescription)"
         }
+        if let persistenceError {
+            saveState = .failed(persistenceError)
+        }
     }
 
     private func createDailyBackupIfNeeded() throws {
@@ -233,6 +290,28 @@ final class TabStore: ObservableObject {
         guard !fileManager.fileExists(atPath: backupURL.path) else { return }
 
         try fileManager.copyItem(at: fileURL, to: backupURL)
+    }
+
+    private func pruneOldBackups(keeping maximumBackupCount: Int) throws {
+        let fileManager = FileManager.default
+        let backupDirectory = fileURL.deletingLastPathComponent().appendingPathComponent("Backups", isDirectory: true)
+        guard fileManager.fileExists(atPath: backupDirectory.path) else { return }
+
+        let backupFiles = try fileManager.contentsOfDirectory(
+            at: backupDirectory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )
+            .filter { $0.lastPathComponent.hasPrefix("tabs-") && $0.pathExtension == "json" }
+            .sorted { left, right in
+                let leftDate = (try? left.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let rightDate = (try? right.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                return leftDate > rightDate
+            }
+
+        for oldBackup in backupFiles.dropFirst(maximumBackupCount) {
+            try fileManager.removeItem(at: oldBackup)
+        }
     }
 
     private func uniqueName(for proposedName: String, excluding excludedID: UUID? = nil) -> String {

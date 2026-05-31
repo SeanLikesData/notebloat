@@ -29,8 +29,7 @@ struct TabBarView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 12, weight: .semibold))
                     .frame(width: 28, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(NotebloatStyle.controlBackground))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(NotebloatStyle.controlStroke, lineWidth: 1))
+                    .glassPill(cornerRadius: 8)
             }
             .buttonStyle(.plain)
             .help("New tab")

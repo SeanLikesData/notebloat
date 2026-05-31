@@ -16,17 +16,21 @@ struct BottomBar: View {
         TextStats.summary(for: store.activeTab?.content ?? "")
     }
 
+    private var saveStatusColor: Color {
+        if case .failed = store.saveState { return .red }
+        return .secondary
+    }
+
     var body: some View {
         HStack {
             Spacer()
-            Text(stats)
+            Text("\(stats) • \(store.saveState.label)")
                 .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(saveStatusColor)
                 .lineLimit(1)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 8).fill(NotebloatStyle.editorBackground))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(NotebloatStyle.controlStroke, lineWidth: 1))
+                .glassPill(cornerRadius: 8)
             Spacer()
 
             menu
@@ -99,8 +103,7 @@ struct BottomBar: View {
             Image(systemName: "ellipsis")
                 .font(.system(size: 13, weight: .semibold))
                 .frame(width: 28, height: 22)
-                .background(RoundedRectangle(cornerRadius: 8).fill(NotebloatStyle.controlBackground))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(NotebloatStyle.controlStroke, lineWidth: 1))
+                .glassPill(cornerRadius: 8)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
