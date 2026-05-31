@@ -47,15 +47,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // No open/close animation: for a quick-notes tool opened and closed
         // constantly, an instant popover feels better than a smooth one.
         popover.animates = false
-        popover.contentViewController = NSHostingController(
+        let hostingController = NSHostingController(
             rootView: ContentView().environmentObject(store)
         )
-        // Give the popover a concrete size up front. Without this, the first
-        // show happens before the SwiftUI content has laid out, so AppKit
-        // anchors the popover using a zero size and then resizes it after it
-        // appears. On a multi-display setup that initial mis-size makes the
-        // popover land in the wrong place instead of directly below the icon.
-        popover.contentSize = currentPopoverSize()
+        // The popover size should be owned by AppKit, not recalculated from
+        // SwiftUI's first layout pass. If SwiftUI is allowed to update the
+        // hosting controller's preferred size while the popover is appearing,
+        // AppKit can briefly place the popover and then nudge it a few pixels
+        // when the preferred size changes.
+        hostingController.sizingOptions = []
+        popover.contentViewController = hostingController
+        applyPopoverSize()
 
         defaultsObserver = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification,
@@ -65,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             Task { @MainActor in
                 self?.applyPinnedBehavior()
                 if self?.popover.isShown == true {
-                    self?.popover.contentSize = self?.currentPopoverSize() ?? .zero
+                    self?.applyPopoverSize()
                     self?.applyPinnedWindowLevel()
                 }
             }
@@ -89,6 +91,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         return NSSize(width: size.width, height: size.height)
     }
 
+    private func applyPopoverSize() {
+        let size = currentPopoverSize()
+        popover.contentSize = size
+        popover.contentViewController?.preferredContentSize = size
+    }
+
     private var isPinned: Bool {
         UserDefaults.standard.bool(forKey: SettingsKey.pinned)
     }
@@ -105,13 +113,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         guard let button = statusItem.button else { return }
         // Re-apply the size and pinned mode in case the user changed settings,
         // so the popover anchors correctly every time.
-        popover.contentSize = currentPopoverSize()
+        applyPopoverSize()
         applyPinnedBehavior()
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        applyPinnedWindowLevel()
-        // Activate so the text field accepts keystrokes, but only after the
-        // popover has been positioned by the show call above.
+        // Activate before showing the popover. Activating after the show call
+        // can make AppKit briefly position the popover and then adjust it when
+        // the accessory application becomes active.
         NSApp.activate(ignoringOtherApps: true)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        applyPopoverSize()
+        applyPinnedWindowLevel()
 
         updateGlobalMonitor()
     }
