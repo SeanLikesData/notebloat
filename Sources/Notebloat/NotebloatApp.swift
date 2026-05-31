@@ -32,10 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let button = statusItem.button {
-            button.image = NSImage(
-                systemSymbolName: "note.text",
-                accessibilityDescription: "Notebloat"
-            )
+            button.image = StatusIcon.notebloat
             button.action = #selector(togglePopover)
             button.target = self
         }
