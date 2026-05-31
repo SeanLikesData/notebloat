@@ -2,13 +2,10 @@ import SwiftUI
 import AppKit
 import os
 
-// The app is driven by an AppKit AppDelegate rather than a SwiftUI
-// `MenuBarExtra` scene. `MenuBarExtra`'s window-style popover does not
-// present reliably when the app is compiled with a bare `swiftc` build
-// (no full Xcode) and launched as an LSUIElement accessory: the status
-// icon appears but clicking it does nothing. Managing an NSStatusItem and
-// NSPopover directly is the standard, dependable approach, and it still
-// hosts the same SwiftUI views.
+// The app uses AppKit for the menu bar item and the popover window lifecycle.
+// The content is still SwiftUI. A custom borderless panel is used instead of
+// NSPopover because NSPopover can visibly re-anchor itself after its first
+// SwiftUI layout pass, which looks like the popover shifts down a few pixels.
 
 @main
 enum Main {
@@ -23,16 +20,17 @@ enum Main {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
-    private var statusItem: NSStatusItem!
-    private let popover = NSPopover()
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let arrowHeight: CGFloat = 12
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let store = TabStore()
     private let logger = Logger(subsystem: "com.notebloat.app", category: "popover")
+
+    private var panel: NotebloatPanel?
     private var monitor: Any?
     private var defaultsObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "note.text",
@@ -42,22 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             button.target = self
         }
 
-        popover.delegate = self
-        applyPinnedBehavior()
-        // No open/close animation: for a quick-notes tool opened and closed
-        // constantly, an instant popover feels better than a smooth one.
-        popover.animates = false
-        let hostingController = NSHostingController(
-            rootView: ContentView().environmentObject(store)
-        )
-        // The popover size should be owned by AppKit, not recalculated from
-        // SwiftUI's first layout pass. If SwiftUI is allowed to update the
-        // hosting controller's preferred size while the popover is appearing,
-        // AppKit can briefly place the popover and then nudge it a few pixels
-        // when the preferred size changes.
-        hostingController.sizingOptions = []
-        popover.contentViewController = hostingController
-        applyPopoverSize()
+        createPanel()
 
         defaultsObserver = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification,
@@ -66,9 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.applyPinnedBehavior()
-                if self?.popover.isShown == true {
-                    self?.applyPopoverSize()
-                    self?.applyPinnedWindowLevel()
+                if self?.panel?.isVisible == true {
+                    self?.positionPanel()
                 }
             }
         }
@@ -83,6 +65,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 
+    private func createPanel() {
+        let size = windowSize()
+        let panel = NotebloatPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.contentViewController = NSHostingController(
+            rootView: PopoverWindowContent(arrowHeight: arrowHeight)
+                .environmentObject(store)
+        )
+        self.panel = panel
+        applyPinnedBehavior()
+    }
+
     /// Reads the saved popover-size preference (the "Popover size" submenu)
     /// and returns its pixel dimensions, defaulting to medium.
     private func currentPopoverSize() -> NSSize {
@@ -91,10 +95,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         return NSSize(width: size.width, height: size.height)
     }
 
-    private func applyPopoverSize() {
-        let size = currentPopoverSize()
-        popover.contentSize = size
-        popover.contentViewController?.preferredContentSize = size
+    private func windowSize() -> NSSize {
+        let contentSize = currentPopoverSize()
+        return NSSize(width: contentSize.width, height: contentSize.height + arrowHeight)
     }
 
     private var isPinned: Bool {
@@ -102,51 +105,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func togglePopover() {
-        if popover.isShown {
-            popover.performClose(nil)
+        if panel?.isVisible == true {
+            closePopover()
         } else {
             showPopover()
         }
     }
 
     private func showPopover() {
-        guard let button = statusItem.button else { return }
-        // Re-apply the size and pinned mode in case the user changed settings,
-        // so the popover anchors correctly every time.
-        applyPopoverSize()
-        applyPinnedBehavior()
-        // Activate before showing the popover. Activating after the show call
-        // can make AppKit briefly position the popover and then adjust it when
-        // the accessory application becomes active.
+        guard let panel else { return }
         NSApp.activate(ignoringOtherApps: true)
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        applyPopoverSize()
-        applyPinnedWindowLevel()
-
+        applyPinnedBehavior()
+        positionPanel()
+        panel.orderFrontRegardless()
+        panel.makeKey()
         updateGlobalMonitor()
+    }
+
+    private func closePopover() {
+        panel?.orderOut(nil)
+        removeGlobalMonitor()
+        logger.debug("Popover closed")
+    }
+
+    private func positionPanel() {
+        guard let panel, let button = statusItem.button, let buttonWindow = button.window else { return }
+
+        let size = windowSize()
+        let buttonFrameInWindow = button.convert(button.bounds, to: nil)
+        let buttonFrameOnScreen = buttonWindow.convertToScreen(buttonFrameInWindow)
+        var origin = NSPoint(
+            x: buttonFrameOnScreen.midX - (size.width / 2),
+            y: buttonFrameOnScreen.minY - size.height - 6
+        )
+
+        if let screen = buttonWindow.screen ?? NSScreen.main {
+            let visibleFrame = screen.visibleFrame
+            origin.x = max(visibleFrame.minX + 8, min(origin.x, visibleFrame.maxX - size.width - 8))
+            origin.y = max(visibleFrame.minY + 8, min(origin.y, visibleFrame.maxY - size.height - 8))
+        }
+
+        panel.setFrame(NSRect(origin: origin, size: size), display: true)
     }
 
     private func applyPinnedBehavior() {
-        popover.behavior = isPinned ? .applicationDefined : .transient
+        panel?.level = isPinned ? .floating : .normal
         updateGlobalMonitor()
-    }
-
-    private func applyPinnedWindowLevel() {
-        guard let window = popover.contentViewController?.view.window else { return }
-        window.level = isPinned ? .floating : .normal
     }
 
     private func updateGlobalMonitor() {
         removeGlobalMonitor()
-        guard popover.isShown, !isPinned else { return }
+        guard panel?.isVisible == true, !isPinned else { return }
 
-        // Close the popover when the user clicks outside it. NSPopover's
-        // transient behavior usually handles this, but a global monitor makes
-        // it reliable for an accessory app.
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             Task { @MainActor in
                 guard let self, !self.isPinned else { return }
-                self.popover.performClose(nil)
+                self.closePopover()
             }
         }
     }
@@ -157,9 +171,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.monitor = nil
         }
     }
+}
 
-    func popoverDidClose(_ notification: Notification) {
-        logger.debug("Popover closed")
-        removeGlobalMonitor()
+final class NotebloatPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
+struct PopoverWindowContent: View {
+    let arrowHeight: CGFloat
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Triangle()
+                .fill(NotebloatStyle.panelBackground)
+                .frame(width: 28, height: arrowHeight)
+
+            ContentView()
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .background(Color.clear)
+    }
+}
+
+struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
