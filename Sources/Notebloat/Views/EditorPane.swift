@@ -13,7 +13,11 @@ struct EditorPane: View {
                 TextEditor(text: store.contentBinding(for: active.id))
                     .font(font)
                     .scrollContentBackground(.hidden)
-                    .padding(.horizontal, 12)
+                    // Keep the trailing padding small so the scroll bar sits
+                    // against the right edge of the editor panel instead of
+                    // floating inward with the text padding.
+                    .padding(.leading, 12)
+                    .padding(.trailing, 2)
                     .padding(.vertical, 10)
                     .background(RoundedRectangle(cornerRadius: 12).fill(NotebloatStyle.editorBackground))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(NotebloatStyle.controlStroke, lineWidth: 1))
