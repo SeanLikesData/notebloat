@@ -20,7 +20,7 @@ The design goal is simple:
 ## Features
 
 - macOS menu bar application with no Dock icon.
-- Named tabs across the top of the popover.
+- Named tabs across the top of the popover. Tabs wrap onto additional rows when there are too many to fit.
 - One free-form text editor per tab.
 - Automatic local saving while typing.
 - Save status indicator in the bottom bar.

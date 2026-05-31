@@ -1,8 +1,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The tab strip across the top. Tabs scroll horizontally. The trailing plus
-/// creates a new tab because tab creation belongs next to the tabs.
+/// The tab strip across the top. Tabs wrap onto additional rows when there are
+/// too many to fit on one line. That keeps tab backlog visible instead of
+/// hiding old tabs behind horizontal scrolling.
 struct TabBarView: View {
     @EnvironmentObject private var store: TabStore
     let onNewTab: () -> Void
@@ -12,18 +13,10 @@ struct TabBarView: View {
     @State private var draggedTabID: UUID?
 
     var body: some View {
-        HStack(spacing: 6) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(store.tabs) { tab in
-                        pill(for: tab)
-                    }
-                }
-                .padding(.leading, 10)
-                .padding(.vertical, 8)
+        FlowLayout(horizontalSpacing: 6, verticalSpacing: 6) {
+            ForEach(store.tabs) { tab in
+                pill(for: tab)
             }
-
-            Spacer(minLength: 0)
 
             Button(action: onNewTab) {
                 Image(systemName: "plus")
@@ -34,8 +27,10 @@ struct TabBarView: View {
             .buttonStyle(.plain)
             .help("New tab")
             .keyboardShortcut("n", modifiers: .command)
-            .padding(.trailing, 10)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func pill(for tab: TabItem) -> some View {
@@ -92,6 +87,86 @@ struct TabBarView: View {
             store.tabs[index].content = tab.content
             store.flushPendingSave()
         }
+    }
+}
+
+private struct FlowLayout: Layout {
+    let horizontalSpacing: CGFloat
+    let verticalSpacing: CGFloat
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout Void
+    ) -> CGSize {
+        let rows = rows(for: subviews, proposedWidth: proposal.width ?? 0)
+        let width = proposal.width ?? rows.map(\.width).max() ?? 0
+        let height = rows.map(\.height).reduce(0, +) + verticalSpacing * CGFloat(max(0, rows.count - 1))
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout Void
+    ) {
+        let rows = rows(for: subviews, proposedWidth: bounds.width)
+        var y = bounds.minY
+
+        for row in rows {
+            var x = bounds.minX
+            for item in row.items {
+                subviews[item.index].place(
+                    at: CGPoint(x: x, y: y),
+                    anchor: .topLeading,
+                    proposal: ProposedViewSize(item.size)
+                )
+                x += item.size.width + horizontalSpacing
+            }
+            y += row.height + verticalSpacing
+        }
+    }
+
+    private func rows(for subviews: Subviews, proposedWidth: CGFloat) -> [FlowRow] {
+        let maxWidth = max(proposedWidth, 1)
+        var rows: [FlowRow] = []
+        var currentItems: [FlowItem] = []
+        var currentWidth: CGFloat = 0
+        var currentHeight: CGFloat = 0
+
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let nextWidth = currentItems.isEmpty ? size.width : currentWidth + horizontalSpacing + size.width
+
+            if nextWidth > maxWidth, !currentItems.isEmpty {
+                rows.append(FlowRow(items: currentItems, width: currentWidth, height: currentHeight))
+                currentItems = [FlowItem(index: index, size: size)]
+                currentWidth = size.width
+                currentHeight = size.height
+            } else {
+                currentItems.append(FlowItem(index: index, size: size))
+                currentWidth = nextWidth
+                currentHeight = max(currentHeight, size.height)
+            }
+        }
+
+        if !currentItems.isEmpty {
+            rows.append(FlowRow(items: currentItems, width: currentWidth, height: currentHeight))
+        }
+
+        return rows
+    }
+
+    private struct FlowRow {
+        var items: [FlowItem]
+        var width: CGFloat
+        var height: CGFloat
+    }
+
+    private struct FlowItem {
+        var index: Int
+        var size: CGSize
     }
 }
 
