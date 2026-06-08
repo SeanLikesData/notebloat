@@ -190,6 +190,15 @@ final class TabStore: ObservableObject {
         try FileManager.default.copyItemReplacingExisting(from: fileURL, to: destinationURL)
     }
 
+    func exportMarkdown(to destinationURL: URL) throws {
+        let sections = tabs.map { tab in
+            let content = tab.content.trimmingCharacters(in: .newlines)
+            return content.isEmpty ? "## \(tab.name)" : "## \(tab.name)\n\n\(content)"
+        }
+        let markdown = "# Notebloat Notes\n\n" + sections.joined(separator: "\n\n---\n\n") + "\n"
+        try markdown.write(to: destinationURL, atomically: true, encoding: .utf8)
+    }
+
     func importNotes(from sourceURL: URL) throws {
         let data = try Data(contentsOf: sourceURL)
         let decoded = try JSONDecoder().decode(Persisted.self, from: data)

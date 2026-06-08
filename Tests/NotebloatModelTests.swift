@@ -7,6 +7,7 @@ enum NotebloatModelTests {
         try await testAddSelectRenameDeleteAndPersistence()
         try await testMoveTab()
         try await testImportExport()
+        try await testMarkdownExport()
         try await testCorruptFileRecovery()
         try await testBackupRetention()
         try await testTextStats()
@@ -87,6 +88,46 @@ enum NotebloatModelTests {
             try imported.importNotes(from: exportURL)
             expect(imported.tabs.contains(where: { $0.name == "Imported" && $0.content == "hello import export" }), "import restores exported notes")
         }
+    }
+
+    private static func testMarkdownExport() async throws {
+        let directory = try freshTemporaryDirectory(named: "markdown-export")
+        let store = await MainActor.run { TabStore(directoryURL: directory) }
+        let exportURL = directory.appendingPathComponent("notes.md")
+
+        try await MainActor.run {
+            store.tabs[0].content = "Weekend plans"
+            store.tabs[1].content = ""
+            store.addTab(named: "Ideas")
+            if let activeID = store.activeID,
+               let index = store.tabs.firstIndex(where: { $0.id == activeID }) {
+                store.tabs[index].content = "Build something small."
+            }
+            try store.exportMarkdown(to: exportURL)
+        }
+
+        let markdown = try String(contentsOf: exportURL, encoding: .utf8)
+        expect(
+            markdown == """
+            # Notebloat Notes
+
+            ## Personal
+
+            Weekend plans
+
+            ---
+
+            ## Work
+
+            ---
+
+            ## Ideas
+
+            Build something small.
+
+            """,
+            "Markdown export includes every tab in order"
+        )
     }
 
     private static func testCorruptFileRecovery() async throws {

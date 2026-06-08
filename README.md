@@ -35,7 +35,7 @@ The design goal is simple:
 - Create, rename, delete, and switch tabs from the user interface.
 - Duplicate tab names are made unique automatically.
 - Delete confirmation before a tab is removed.
-- Import and export as JSON.
+- Import JSON backups and export all tabs as JSON or Markdown.
 - Reveal notes in Finder from Settings.
 - Daily local backups with retention for the latest 30 backup files.
 - Corrupt JSON recovery.

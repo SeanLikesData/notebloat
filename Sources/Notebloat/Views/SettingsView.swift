@@ -85,7 +85,12 @@ struct SettingsSheet: View {
 
                     HStack(spacing: 8) {
                         Button("Reveal in Finder", action: store.revealNotesInFinder)
-                        Button("Export…", action: exportNotes)
+                        Menu("Export…") {
+                            Button("JSON…") { exportNotes(as: .json) }
+                            Button("Markdown…") { exportNotes(as: .markdown) }
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
                         Button("Import…", action: importNotes)
                     }
                     .buttonStyle(.borderless)
@@ -155,16 +160,47 @@ struct SettingsSheet: View {
         }
     }
 
-    private func exportNotes() {
+    private enum ExportFormat {
+        case json
+        case markdown
+
+        var fileName: String {
+            switch self {
+            case .json: "Notebloat-tabs.json"
+            case .markdown: "Notebloat-notes.md"
+            }
+        }
+
+        var contentType: UTType {
+            switch self {
+            case .json: .json
+            case .markdown: UTType(filenameExtension: "md") ?? .plainText
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .json: "JSON"
+            case .markdown: "Markdown"
+            }
+        }
+    }
+
+    private func exportNotes(as format: ExportFormat) {
         let panel = NSSavePanel()
         panel.title = "Export Notebloat Notes"
-        panel.nameFieldStringValue = "Notebloat-tabs.json"
-        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = format.fileName
+        panel.allowedContentTypes = [format.contentType]
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            try store.exportNotes(to: url)
-            settingsMessage = "Notes exported to \(url.lastPathComponent)."
+            switch format {
+            case .json:
+                try store.exportNotes(to: url)
+            case .markdown:
+                try store.exportMarkdown(to: url)
+            }
+            settingsMessage = "\(format.label) exported to \(url.lastPathComponent)."
         } catch {
             logger.error("Export failed: \(error.localizedDescription, privacy: .public)")
             settingsMessage = "Export failed. \(error.localizedDescription)"
