@@ -41,7 +41,7 @@ enum MarkdownStyler {
         pattern: "^[\\t ]*>[\\t ]?"
     )
     private static let taskPattern = try! NSRegularExpression(
-        pattern: "^([\\t ]*)([-+*])[\\t ]+\\[([ xX]?)\\][\\t ]+"
+        pattern: "^([\\t ]*)(?:([-+*])[\\t ]+)?(\\[)([ xX]?)\\](?:[\\t ]+|$)"
     )
     private static let unorderedListPattern = try! NSRegularExpression(
         pattern: "^([\\t ]*)([-+*])[\\t ]+"
@@ -178,11 +178,13 @@ enum MarkdownStyler {
         }
 
         if let match = taskPattern.firstMatch(in: line as String, range: localRange) {
-            let checkedRange = match.range(at: 3)
+            let checkedRange = match.range(at: 4)
             let checked = checkedRange.location != NSNotFound && line.substring(with: checkedRange).lowercased() == "x"
+            let r2 = match.range(at: 2)
+            let symbolRange = r2.location != NSNotFound ? r2 : match.range(at: 3)
             renderListMarker(
                 match: match,
-                symbolRange: match.range(at: 2),
+                symbolRange: symbolRange,
                 in: range,
                 textStorage: textStorage,
                 symbol: checked ? "☑" : "☐"
