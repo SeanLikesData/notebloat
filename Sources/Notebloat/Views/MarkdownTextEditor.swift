@@ -68,13 +68,14 @@ struct MarkdownTextEditor: NSViewRepresentable {
         var parent: MarkdownTextEditor
         weak var textView: NSTextView?
         var isUpdatingText = false
+        var isUpdatingAppearance = false
 
         init(parent: MarkdownTextEditor) {
             self.parent = parent
         }
 
         func textDidChange(_ notification: Notification) {
-            guard let textView, !isUpdatingText else { return }
+            guard let textView, !isUpdatingText, !isUpdatingAppearance else { return }
             parent.text = textView.string
             refreshAppearance()
         }
@@ -84,10 +85,8 @@ struct MarkdownTextEditor: NSViewRepresentable {
         }
 
         func refreshAppearance() {
-            guard let textView, let layoutManager = textView.layoutManager else { return }
+            guard let textView, let textStorage = textView.textStorage else { return }
             let font = NSFont.systemFont(ofSize: parent.fontSize)
-            textView.font = font
-            textView.textColor = .textColor
             textView.insertionPointColor = .textColor
 
             let text = textView.string as NSString
@@ -96,13 +95,18 @@ struct MarkdownTextEditor: NSViewRepresentable {
                 guard selection.location <= text.length else { return nil }
                 return text.lineRange(for: selection)
             }
+            isUpdatingAppearance = true
             MarkdownStyler.apply(
-                to: layoutManager,
-                text: text,
+                to: textStorage,
                 baseFont: font,
                 activeLineRanges: activeRanges,
                 enabled: parent.rendersMarkdown
             )
+            textView.typingAttributes = [
+                .font: font,
+                .foregroundColor: NSColor.textColor
+            ]
+            isUpdatingAppearance = false
         }
     }
 }

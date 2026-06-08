@@ -1,7 +1,7 @@
 import AppKit
 
-/// Applies non-destructive Markdown styling through NSLayoutManager temporary
-/// attributes. The text storage always remains the original plain Markdown.
+/// Applies non-destructive display attributes to plain Markdown text. Only
+/// attributes change; the text storage string remains the original source.
 enum MarkdownStyler {
     private static let hiddenFont = NSFont.systemFont(ofSize: 0.1)
 
@@ -33,19 +33,21 @@ enum MarkdownStyler {
     )
 
     static func apply(
-        to layoutManager: NSLayoutManager,
-        text: NSString,
+        to textStorage: NSTextStorage,
         baseFont: NSFont,
         activeLineRanges: [NSRange],
         enabled: Bool
     ) {
+        let text = textStorage.string as NSString
         let fullRange = NSRange(location: 0, length: text.length)
-        clearTemporaryAttributes(from: layoutManager, range: fullRange)
+        textStorage.beginEditing()
+        defer { textStorage.endEditing() }
+
         guard text.length > 0 else { return }
 
-        layoutManager.addTemporaryAttributes(
+        textStorage.setAttributes(
             [.font: baseFont, .foregroundColor: NSColor.textColor],
-            forCharacterRange: fullRange
+            range: fullRange
         )
         guard enabled else { return }
 
@@ -64,7 +66,7 @@ enum MarkdownStyler {
             let lineRange = NSRange(location: lineStart, length: contentsEnd - lineStart)
             if !activeLineRanges.contains(where: { rangesTouch($0, lineRange) }) {
                 styleLine(
-                    in: layoutManager,
+                    in: textStorage,
                     text: text,
                     range: lineRange,
                     baseFont: baseFont
@@ -76,24 +78,8 @@ enum MarkdownStyler {
         }
     }
 
-    private static func clearTemporaryAttributes(
-        from layoutManager: NSLayoutManager,
-        range: NSRange
-    ) {
-        let keys: [NSAttributedString.Key] = [
-            .font,
-            .foregroundColor,
-            .backgroundColor,
-            .strikethroughStyle,
-            .underlineStyle
-        ]
-        for key in keys {
-            layoutManager.removeTemporaryAttribute(key, forCharacterRange: range)
-        }
-    }
-
     private static func styleLine(
-        in layoutManager: NSLayoutManager,
+        in textStorage: NSTextStorage,
         text: NSString,
         range: NSRange,
         baseFont: NSFont
@@ -109,14 +95,14 @@ enum MarkdownStyler {
                 ofSize: baseFont.pointSize + sizeIncrease,
                 weight: .bold
             )
-            layoutManager.addTemporaryAttribute(
+            textStorage.addAttribute(
                 .font,
                 value: headingFont,
-                forCharacterRange: contentRange
+                range: contentRange
             )
             hide(
                 NSRange(location: range.location, length: contentRange.location - range.location),
-                in: layoutManager
+                in: textStorage
             )
         }
 
@@ -124,7 +110,7 @@ enum MarkdownStyler {
             boldPatterns,
             in: line,
             lineRange: range,
-            layoutManager: layoutManager,
+            textStorage: textStorage,
             contentAttributes: [
                 .font: NSFontManager.shared.convert(baseFont, toHaveTrait: .boldFontMask)
             ]
@@ -133,7 +119,7 @@ enum MarkdownStyler {
             italicPatterns,
             in: line,
             lineRange: range,
-            layoutManager: layoutManager,
+            textStorage: textStorage,
             contentAttributes: [
                 .font: NSFontManager.shared.convert(baseFont, toHaveTrait: .italicFontMask)
             ]
@@ -142,14 +128,14 @@ enum MarkdownStyler {
             [strikethroughPattern],
             in: line,
             lineRange: range,
-            layoutManager: layoutManager,
+            textStorage: textStorage,
             contentAttributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue]
         )
         styleDelimitedMatches(
             [codePattern],
             in: line,
             lineRange: range,
-            layoutManager: layoutManager,
+            textStorage: textStorage,
             contentAttributes: [
                 .font: NSFont.monospacedSystemFont(ofSize: baseFont.pointSize, weight: .regular),
                 .backgroundColor: NSColor.quaternaryLabelColor
@@ -158,36 +144,36 @@ enum MarkdownStyler {
 
         for match in linkPattern.matches(in: line as String, range: localRange) {
             let labelRange = absolute(match.range(at: 1), within: range)
-            layoutManager.addTemporaryAttributes(
+            textStorage.addAttributes(
                 [
                     .foregroundColor: NSColor.linkColor,
                     .underlineStyle: NSUnderlineStyle.single.rawValue
                 ],
-                forCharacterRange: labelRange
+                range: labelRange
             )
-            hide(NSRange(location: range.location + match.range.location, length: 1), in: layoutManager)
+            hide(NSRange(location: range.location + match.range.location, length: 1), in: textStorage)
             let trailingStart = labelRange.location + labelRange.length
             let matchEnd = range.location + match.range.location + match.range.length
-            hide(NSRange(location: trailingStart, length: matchEnd - trailingStart), in: layoutManager)
+            hide(NSRange(location: trailingStart, length: matchEnd - trailingStart), in: textStorage)
         }
 
         if let match = quotePattern.firstMatch(in: line as String, range: localRange) {
             let markerRange = absolute(match.range, within: range)
-            hide(markerRange, in: layoutManager)
+            hide(markerRange, in: textStorage)
             let contentRange = NSRange(
                 location: markerRange.location + markerRange.length,
                 length: max(0, NSMaxRange(range) - NSMaxRange(markerRange))
             )
-            layoutManager.addTemporaryAttribute(
+            textStorage.addAttribute(
                 .foregroundColor,
                 value: NSColor.secondaryLabelColor,
-                forCharacterRange: contentRange
+                range: contentRange
             )
         } else if let match = listPattern.firstMatch(in: line as String, range: localRange) {
-            layoutManager.addTemporaryAttribute(
+            textStorage.addAttribute(
                 .foregroundColor,
                 value: NSColor.secondaryLabelColor,
-                forCharacterRange: absolute(match.range, within: range)
+                range: absolute(match.range, within: range)
             )
         }
     }
@@ -196,7 +182,7 @@ enum MarkdownStyler {
         _ patterns: [NSRegularExpression],
         in line: NSString,
         lineRange: NSRange,
-        layoutManager: NSLayoutManager,
+        textStorage: NSTextStorage,
         contentAttributes: [NSAttributedString.Key: Any]
     ) {
         let localRange = NSRange(location: 0, length: line.length)
@@ -204,30 +190,30 @@ enum MarkdownStyler {
             for match in pattern.matches(in: line as String, range: localRange) {
                 let wholeRange = absolute(match.range, within: lineRange)
                 let contentRange = absolute(match.range(at: 1), within: lineRange)
-                layoutManager.addTemporaryAttributes(
+                textStorage.addAttributes(
                     contentAttributes,
-                    forCharacterRange: contentRange
+                    range: contentRange
                 )
                 hide(
                     NSRange(location: wholeRange.location, length: contentRange.location - wholeRange.location),
-                    in: layoutManager
+                    in: textStorage
                 )
                 hide(
                     NSRange(
                         location: NSMaxRange(contentRange),
                         length: NSMaxRange(wholeRange) - NSMaxRange(contentRange)
                     ),
-                    in: layoutManager
+                    in: textStorage
                 )
             }
         }
     }
 
-    private static func hide(_ range: NSRange, in layoutManager: NSLayoutManager) {
+    private static func hide(_ range: NSRange, in textStorage: NSTextStorage) {
         guard range.length > 0 else { return }
-        layoutManager.addTemporaryAttributes(
+        textStorage.addAttributes(
             [.font: hiddenFont, .foregroundColor: NSColor.clear],
-            forCharacterRange: range
+            range: range
         )
     }
 

@@ -36,7 +36,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     }
 }
 
-/// Editor font size (the "Font size" submenu in the ••• menu).
+/// Editor font size.
 enum FontSize: String, CaseIterable, Identifiable {
     case small
     case medium
@@ -61,7 +61,7 @@ enum FontSize: String, CaseIterable, Identifiable {
     }
 }
 
-/// Popover dimensions (the "Popover size" submenu in the ••• menu).
+/// Popover dimensions.
 enum PopoverSize: String, CaseIterable, Identifiable {
     case small
     case medium

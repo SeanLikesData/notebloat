@@ -116,8 +116,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyPinnedBehavior()
     }
 
-    /// Reads the saved popover-size preference (the "Popover size" submenu)
-    /// and returns its pixel dimensions, defaulting to medium.
+    /// Reads the saved popover-size preference and returns its pixel
+    /// dimensions, defaulting to medium.
     private func currentPopoverSize() -> NSSize {
         let raw = UserDefaults.standard.string(forKey: SettingsKey.popoverSize)
         let size = (raw.flatMap(PopoverSize.init(rawValue:)) ?? .medium).dimensions
@@ -206,4 +206,3 @@ final class NotebloatPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 }
-

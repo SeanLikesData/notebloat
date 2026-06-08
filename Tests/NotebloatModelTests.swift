@@ -173,36 +173,38 @@ enum NotebloatModelTests {
     }
 
     private static func testMarkdownStyling() async throws {
-        let source = "# Heading\n**Bold** text"
+        let source = "# Heading\n**Bold** text\n_Raw_ line"
         let storage = NSTextStorage(string: source)
-        let layoutManager = NSLayoutManager()
-        storage.addLayoutManager(layoutManager)
         let baseFont = NSFont.systemFont(ofSize: 14)
         let activeLine = (source as NSString).lineRange(
-            for: NSRange(location: (source as NSString).range(of: "**Bold**").location, length: 0)
+            for: NSRange(location: (source as NSString).range(of: "_Raw_").location, length: 0)
         )
 
         MarkdownStyler.apply(
-            to: layoutManager,
-            text: source as NSString,
+            to: storage,
             baseFont: baseFont,
             activeLineRanges: [activeLine],
             enabled: true
         )
 
-        let headingMarkerFont = layoutManager.temporaryAttribute(
+        let headingMarkerFont = storage.attribute(
             .font,
-            atCharacterIndex: 0,
+            at: 0,
             effectiveRange: nil
         ) as? NSFont
-        let headingFont = layoutManager.temporaryAttribute(
+        let headingFont = storage.attribute(
             .font,
-            atCharacterIndex: 2,
+            at: 2,
             effectiveRange: nil
         ) as? NSFont
-        let activeMarkerFont = layoutManager.temporaryAttribute(
+        let boldFont = storage.attribute(
             .font,
-            atCharacterIndex: activeLine.location,
+            at: (source as NSString).range(of: "Bold").location,
+            effectiveRange: nil
+        ) as? NSFont
+        let activeMarkerFont = storage.attribute(
+            .font,
+            at: activeLine.location,
             effectiveRange: nil
         ) as? NSFont
 
@@ -211,7 +213,12 @@ enum NotebloatModelTests {
             headingFont.map { NSFontManager.shared.traits(of: $0).contains(.boldFontMask) } == true,
             "inactive Markdown headings are styled"
         )
+        expect(
+            boldFont.map { NSFontManager.shared.traits(of: $0).contains(.boldFontMask) } == true,
+            "inactive Markdown emphasis uses rendered typography"
+        )
         expect(activeMarkerFont?.pointSize == baseFont.pointSize, "active line shows raw Markdown")
+        expect(storage.string == source, "Markdown styling preserves the plain-text source")
     }
 
     private static func freshTemporaryDirectory(named name: String) throws -> URL {

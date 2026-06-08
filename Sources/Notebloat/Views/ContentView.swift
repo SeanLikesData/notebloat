@@ -35,9 +35,7 @@ struct ContentView: View {
                 EditorPane()
                 NotebloatStyle.divider
                 BottomBar(
-                    onSettings: { showingSettings = true },
-                    onRenameActive: { renamingTab = store.activeTab },
-                    onDeleteActive: { deletingTab = store.activeTab }
+                    onSettings: { showingSettings = true }
                 )
             }
 

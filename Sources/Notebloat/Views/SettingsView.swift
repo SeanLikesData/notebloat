@@ -13,6 +13,7 @@ struct SettingsSheet: View {
     @AppStorage(SettingsKey.popoverSize) private var popoverRaw = PopoverSize.medium.rawValue
     @AppStorage(SettingsKey.launchAtLogin) private var launchAtLogin = false
     @AppStorage(SettingsKey.markdownRendering) private var markdownRendering = false
+    @AppStorage(SettingsKey.pinned) private var pinned = false
 
     let onClose: () -> Void
 
@@ -65,6 +66,20 @@ struct SettingsSheet: View {
                 }
 
                 section("Behavior") {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Pinned")
+                            Text("Keep the popover open while using other apps.")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $pinned)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
+                    .padding(.vertical, 8)
+                    divider
                     HStack {
                         Text("Launch at login")
                         Spacer()

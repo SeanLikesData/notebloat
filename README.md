@@ -31,7 +31,7 @@ The design goal is simple:
 - Small, medium, and large popover size settings.
 - Optional Markdown live preview that keeps the selected line as raw source.
 - Create tabs from the top-right plus button next to the tab strip.
-- Rename tabs by double-clicking a tab, using the tab context menu, or using the actions menu.
+- Rename tabs by double-clicking a tab or using the tab context menu.
 - Drag tabs to reorder them.
 - Create, rename, delete, and switch tabs from the user interface.
 - Duplicate tab names are made unique automatically.
@@ -47,10 +47,6 @@ The design goal is simple:
 ### Main popover
 
 ![Main popover](design/main-popover.png)
-
-### Actions menu
-
-![Actions menu](design/actions-menu.png)
 
 ### New tab dialog
 
@@ -75,7 +71,7 @@ open build/Notebloat.app
 
 Do not use `swift build` in this development environment. Swift Package Manager fails during the manifest compile step on the current machine. `Package.swift` is kept for editor support and project structure.
 
-To quit the application, open the `•••` menu and choose **Exit**.
+To quit the application, press **Command-Q**.
 
 ## Test
 
@@ -140,8 +136,8 @@ Notebloat is local-first.
 | Shortcut | Action |
 | --- | --- |
 | Command-N | Create a new tab |
-| Command-R | Rename the active tab |
 | Command-comma | Open settings |
+| Command-Q | Quit Notebloat |
 | Escape | Cancel dialogs that use the standard cancel action |
 
 ## Project layout
@@ -154,7 +150,7 @@ Sources/Notebloat/
     Note.swift              TabItem: one tab with name and text content
     NoteStore.swift         TabStore: tabs, selection, save status, JSON persistence, import, export
   Views/
-    BottomBar.swift         The bottom bar with counter, save status, and actions menu
+    BottomBar.swift         The bottom bar with counter, save status, and Settings button
     ContentView.swift       Main popover layout and overlays
     EditorPane.swift        Active-tab editor configuration
     MarkdownTextEditor.swift AppKit plain-text editor with Markdown live preview
