@@ -13,6 +13,7 @@ enum NotebloatModelTests {
         try await testBackupRetention()
         try await testTextStats()
         try await testMarkdownStyling()
+        try await testMarkdownLists()
         print("All Notebloat model tests passed.")
     }
 
@@ -213,12 +214,71 @@ enum NotebloatModelTests {
             headingFont.map { NSFontManager.shared.traits(of: $0).contains(.boldFontMask) } == true,
             "inactive Markdown headings are styled"
         )
+        let headingColor = storage.attribute(
+            .foregroundColor,
+            at: 2,
+            effectiveRange: nil
+        ) as? NSColor
+        expect(
+            colorsMatch(headingColor, red: 0x7E, green: 0xB8, blue: 0xDA),
+            "inactive Markdown headings use their level color"
+        )
         expect(
             boldFont.map { NSFontManager.shared.traits(of: $0).contains(.boldFontMask) } == true,
             "inactive Markdown emphasis uses rendered typography"
         )
         expect(activeMarkerFont?.pointSize == baseFont.pointSize, "active line shows raw Markdown")
         expect(storage.string == source, "Markdown styling preserves the plain-text source")
+    }
+
+    private static func testMarkdownLists() async throws {
+        let source = "- List item\n- [ ] Todo\n- [x] Done\nRaw"
+        let storage = NSTextStorage(string: source)
+        let baseFont = NSFont.systemFont(ofSize: 14)
+        let activeLine = (source as NSString).lineRange(
+            for: NSRange(location: (source as NSString).range(of: "Raw").location, length: 0)
+        )
+
+        MarkdownStyler.apply(
+            to: storage,
+            baseFont: baseFont,
+            activeLineRanges: [activeLine],
+            enabled: true
+        )
+
+        let listMarker = storage.attribute(
+            .notebloatListMarker,
+            at: (source as NSString).range(of: "- List").location,
+            effectiveRange: nil
+        ) as? String
+        let uncheckedMarker = storage.attribute(
+            .notebloatListMarker,
+            at: (source as NSString).range(of: "- [ ]").location,
+            effectiveRange: nil
+        ) as? String
+        let checkedMarker = storage.attribute(
+            .notebloatListMarker,
+            at: (source as NSString).range(of: "- [x]").location,
+            effectiveRange: nil
+        ) as? String
+
+        expect(listMarker == "•", "unordered Markdown lists render a bullet")
+        expect(uncheckedMarker == "☐", "unchecked Markdown tasks render a checkbox")
+        expect(checkedMarker == "☑", "checked Markdown tasks render a checked checkbox")
+        expect(storage.string == source, "list rendering preserves the plain-text source")
+    }
+
+    private static func colorsMatch(
+        _ color: NSColor?,
+        red: Int,
+        green: Int,
+        blue: Int
+    ) -> Bool {
+        guard let color = color?.usingColorSpace(.sRGB) else { return false }
+        let tolerance = 0.001
+        return abs(color.redComponent - CGFloat(red) / 255) < tolerance
+            && abs(color.greenComponent - CGFloat(green) / 255) < tolerance
+            && abs(color.blueComponent - CGFloat(blue) / 255) < tolerance
     }
 
     private static func freshTemporaryDirectory(named name: String) throws -> URL {

@@ -1,9 +1,21 @@
 import AppKit
 
+extension NSAttributedString.Key {
+    static let notebloatListMarker = NSAttributedString.Key("NotebloatListMarker")
+}
+
 /// Applies non-destructive display attributes to plain Markdown text. Only
 /// attributes change; the text storage string remains the original source.
 enum MarkdownStyler {
     private static let hiddenFont = NSFont.systemFont(ofSize: 0.1)
+    private static let headingColors: [NSColor] = [
+        color(red: 0x7E, green: 0xB8, blue: 0xDA),
+        color(red: 0xE8, green: 0x8A, blue: 0x8A),
+        color(red: 0xB3, green: 0x9D, blue: 0xDB),
+        color(red: 0xA5, green: 0xD6, blue: 0xA7),
+        color(red: 0xFF, green: 0xB8, blue: 0x6C),
+        color(red: 0xF4, green: 0x8F, blue: 0xB1)
+    ]
 
     private static let headingPattern = try! NSRegularExpression(
         pattern: "^(#{1,6})[\\t ]+(.+)$"
@@ -28,8 +40,14 @@ enum MarkdownStyler {
     private static let quotePattern = try! NSRegularExpression(
         pattern: "^[\\t ]*>[\\t ]?"
     )
-    private static let listPattern = try! NSRegularExpression(
-        pattern: "^[\\t ]*(?:[-+*]|\\d+\\.)[\\t ]+"
+    private static let taskPattern = try! NSRegularExpression(
+        pattern: "^([\\t ]*)([-+*])[\\t ]+\\[([ xX])\\][\\t ]+"
+    )
+    private static let unorderedListPattern = try! NSRegularExpression(
+        pattern: "^([\\t ]*)([-+*])[\\t ]+"
+    )
+    private static let orderedListPattern = try! NSRegularExpression(
+        pattern: "^[\\t ]*\\d+\\.[\\t ]+"
     )
 
     static func apply(
@@ -95,9 +113,11 @@ enum MarkdownStyler {
                 ofSize: baseFont.pointSize + sizeIncrease,
                 weight: .bold
             )
-            textStorage.addAttribute(
-                .font,
-                value: headingFont,
+            textStorage.addAttributes(
+                [
+                    .font: headingFont,
+                    .foregroundColor: headingColors[level - 1]
+                ],
                 range: contentRange
             )
             hide(
@@ -157,7 +177,24 @@ enum MarkdownStyler {
             hide(NSRange(location: trailingStart, length: matchEnd - trailingStart), in: textStorage)
         }
 
-        if let match = quotePattern.firstMatch(in: line as String, range: localRange) {
+        if let match = taskPattern.firstMatch(in: line as String, range: localRange) {
+            let checked = line.substring(with: match.range(at: 3)).lowercased() == "x"
+            renderListMarker(
+                match: match,
+                symbolRange: match.range(at: 2),
+                in: range,
+                textStorage: textStorage,
+                symbol: checked ? "☑" : "☐"
+            )
+        } else if let match = unorderedListPattern.firstMatch(in: line as String, range: localRange) {
+            renderListMarker(
+                match: match,
+                symbolRange: match.range(at: 2),
+                in: range,
+                textStorage: textStorage,
+                symbol: "•"
+            )
+        } else if let match = quotePattern.firstMatch(in: line as String, range: localRange) {
             let markerRange = absolute(match.range, within: range)
             hide(markerRange, in: textStorage)
             let contentRange = NSRange(
@@ -169,13 +206,35 @@ enum MarkdownStyler {
                 value: NSColor.secondaryLabelColor,
                 range: contentRange
             )
-        } else if let match = listPattern.firstMatch(in: line as String, range: localRange) {
+        } else if let match = orderedListPattern.firstMatch(in: line as String, range: localRange) {
             textStorage.addAttribute(
                 .foregroundColor,
                 value: NSColor.secondaryLabelColor,
                 range: absolute(match.range, within: range)
             )
         }
+    }
+
+    private static func renderListMarker(
+        match: NSTextCheckingResult,
+        symbolRange: NSRange,
+        in lineRange: NSRange,
+        textStorage: NSTextStorage,
+        symbol: String
+    ) {
+        let markerRange = absolute(symbolRange, within: lineRange)
+        textStorage.addAttribute(
+            .notebloatListMarker,
+            value: symbol,
+            range: markerRange
+        )
+
+        let hiddenStart = NSMaxRange(markerRange)
+        let matchEnd = lineRange.location + NSMaxRange(match.range)
+        hide(
+            NSRange(location: hiddenStart, length: max(0, matchEnd - hiddenStart)),
+            in: textStorage
+        )
     }
 
     private static func styleDelimitedMatches(
@@ -226,5 +285,14 @@ enum MarkdownStyler {
             return left.location >= right.location && left.location <= NSMaxRange(right)
         }
         return NSIntersectionRange(left, right).length > 0
+    }
+
+    private static func color(red: Int, green: Int, blue: Int) -> NSColor {
+        NSColor(
+            srgbRed: CGFloat(red) / 255,
+            green: CGFloat(green) / 255,
+            blue: CGFloat(blue) / 255,
+            alpha: 1
+        )
     }
 }

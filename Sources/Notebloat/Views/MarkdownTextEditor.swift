@@ -34,6 +34,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
+        textView.layoutManager?.delegate = context.coordinator
         scrollView.documentView = textView
 
         context.coordinator.textView = textView
@@ -64,7 +65,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         context.coordinator.refreshAppearance()
     }
 
-    final class Coordinator: NSObject, NSTextViewDelegate {
+    final class Coordinator: NSObject, NSTextViewDelegate, NSLayoutManagerDelegate {
         var parent: MarkdownTextEditor
         weak var textView: NSTextView?
         var isUpdatingText = false
@@ -82,6 +83,55 @@ struct MarkdownTextEditor: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             refreshAppearance()
+        }
+
+        func layoutManager(
+            _ layoutManager: NSLayoutManager,
+            shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>,
+            properties: UnsafePointer<NSLayoutManager.GlyphProperty>,
+            characterIndexes: UnsafePointer<Int>,
+            font: NSFont,
+            forGlyphRange glyphRange: NSRange
+        ) -> Int {
+            guard let textStorage = layoutManager.textStorage else { return 0 }
+            var replacementGlyphs = Array(
+                UnsafeBufferPointer(start: glyphs, count: glyphRange.length)
+            )
+            var replacedAnyGlyph = false
+
+            for offset in 0..<glyphRange.length {
+                let characterIndex = characterIndexes[offset]
+                guard characterIndex < textStorage.length,
+                      let symbol = textStorage.attribute(
+                          .notebloatListMarker,
+                          at: characterIndex,
+                          effectiveRange: nil
+                      ) as? String,
+                      let character = symbol.utf16.first
+                else { continue }
+
+                var utf16Character = character
+                var replacementGlyph: CGGlyph = 0
+                if CTFontGetGlyphsForCharacters(
+                    font as CTFont,
+                    &utf16Character,
+                    &replacementGlyph,
+                    1
+                ) {
+                    replacementGlyphs[offset] = replacementGlyph
+                    replacedAnyGlyph = true
+                }
+            }
+
+            guard replacedAnyGlyph else { return 0 }
+            layoutManager.setGlyphs(
+                replacementGlyphs,
+                properties: properties,
+                characterIndexes: characterIndexes,
+                font: font,
+                forGlyphRange: glyphRange
+            )
+            return glyphRange.length
         }
 
         func refreshAppearance() {

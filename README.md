@@ -29,7 +29,8 @@ The design goal is simple:
 - Light, dark, and system theme settings.
 - Small, medium, and large editor font settings.
 - Small, medium, and large popover size settings.
-- Optional Markdown live preview that keeps the selected line as raw source.
+- Optional Markdown live preview with colored headings, rendered list markers,
+  task checkboxes, and raw source on the selected line.
 - Create tabs from the top-right plus button next to the tab strip.
 - Rename tabs by double-clicking a tab or using the tab context menu.
 - Drag tabs to reorder them.
