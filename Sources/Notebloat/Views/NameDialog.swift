@@ -65,7 +65,11 @@ struct NameDialog: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.1)))
             .onAppear {
                 text = initialText
-                focused = true
+                // Wait until SwiftUI has installed the text field in the
+                // AppKit responder chain before taking focus from the editor.
+                DispatchQueue.main.async {
+                    focused = true
+                }
             }
         }
     }
