@@ -39,7 +39,7 @@ struct SettingsSheet: View {
                 }
 
                 section("Appearance") {
-                    row("Theme") {
+                    row("Theme", icon: "paintpalette") {
                         Picker("", selection: $themeRaw) {
                             ForEach(AppTheme.allCases) { Text($0.label).tag($0.rawValue) }
                         }
@@ -48,7 +48,7 @@ struct SettingsSheet: View {
                         .frame(width: 160)
                     }
                     divider
-                    row("Font size") {
+                    row("Font size", icon: "textformat.size") {
                         Picker("", selection: $fontRaw) {
                             ForEach(FontSize.allCases) { Text($0.label).tag($0.rawValue) }
                         }
@@ -56,7 +56,7 @@ struct SettingsSheet: View {
                         .frame(width: 110)
                     }
                     divider
-                    row("Popover size") {
+                    row("Popover size", icon: "uiwindow.split.2x1") {
                         Picker("", selection: $popoverRaw) {
                             ForEach(PopoverSize.allCases) { Text($0.label).tag($0.rawValue) }
                         }
@@ -66,60 +66,55 @@ struct SettingsSheet: View {
                 }
 
                 section("Behavior") {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Pinned")
-                            Text("Keep the popover open while using other apps.")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
+                    row("Pinned", subtitle: "Keep the popover open while using other apps.", icon: "pin") {
                         Toggle("", isOn: $pinned)
                             .labelsHidden()
                             .toggleStyle(.switch)
+                            .controlSize(.small)
                     }
-                    .padding(.vertical, 8)
                     divider
-                    HStack {
-                        Text("Launch at login")
-                        Spacer()
+                    row("Launch at login", icon: "macwindow") {
                         Toggle("", isOn: $launchAtLogin)
                             .labelsHidden()
                             .toggleStyle(.switch)
+                            .controlSize(.small)
                             .onChange(of: launchAtLogin) { _, newValue in
                                 applyLaunchAtLogin(newValue)
                             }
                     }
-                    .padding(.vertical, 8)
                     divider
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Render Markdown")
-                            Text("Show formatting outside the selected line.")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
+                    row("Render Markdown", subtitle: "Show formatting outside the selected line.", icon: "text.quote") {
                         Toggle("", isOn: $markdownRendering)
                             .labelsHidden()
                             .toggleStyle(.switch)
+                            .controlSize(.small)
                     }
-                    .padding(.vertical, 8)
                 }
 
                 section("Data") {
-                    Text("Notes are stored locally on this Mac.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 6)
-
-                    HStack(spacing: 8) {
-                        Button("Reveal in Finder", action: store.revealNotesInFinder)
-                        Button("Markdown…") { exportNotes(as: .markdown) }
-                        Button("JSON…") { exportNotes(as: .json) }
-                        Button("Import…", action: importNotes)
+                    row("Reveal Notes in Finder", icon: "folder") {
+                        Button("Reveal", action: store.revealNotesInFinder)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.blue)
                     }
-                    .buttonStyle(.borderless)
+                    divider
+                    row("Export as Markdown", icon: "doc.text") {
+                        Button("Export…") { exportNotes(as: .markdown) }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.blue)
+                    }
+                    divider
+                    row("Export as JSON", icon: "curlybraces") {
+                        Button("Export…") { exportNotes(as: .json) }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.blue)
+                    }
+                    divider
+                    row("Import JSON", subtitle: "Restore notes from a previous export.", icon: "arrow.down.doc") {
+                        Button("Import…", action: importNotes)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.blue)
+                    }
                 }
 
                 if let settingsMessage {
@@ -130,10 +125,11 @@ struct SettingsSheet: View {
                 }
             }
             .font(.system(size: 13))
-            .padding(18)
-            .frame(width: 340)
-            .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.1)))
+            .padding(20)
+            .frame(width: 380)
+            .background(RoundedRectangle(cornerRadius: 18).fill(.ultraThinMaterial))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.primary.opacity(0.15), lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 10)
             .onAppear {
                 launchAtLogin = (SMAppService.mainApp.status == .enabled)
             }
@@ -144,29 +140,53 @@ struct SettingsSheet: View {
         _ title: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
-                .padding(.bottom, 4)
-            content()
+                .padding(.leading, 6)
+            
+            VStack(spacing: 0) {
+                content()
+            }
+            .padding(.vertical, 2)
+            .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.08), lineWidth: 1))
         }
     }
 
     private func row<Control: View>(
         _ title: String,
+        subtitle: String? = nil,
+        icon: String? = nil,
         @ViewBuilder control: () -> Control
     ) -> some View {
-        HStack {
-            Text(title)
+        HStack(spacing: 12) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+            }
             Spacer()
             control()
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
     }
 
     private var divider: some View {
-        Divider().opacity(0.4)
+        Divider()
+            .padding(.leading, 46)
     }
 
     private func applyLaunchAtLogin(_ enabled: Bool) {
