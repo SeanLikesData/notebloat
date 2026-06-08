@@ -47,6 +47,49 @@ final class MarkdownLayoutManager: NSLayoutManager {
     }
 }
 
+final class MarkdownTextView: NSTextView {
+    var onToggleCheckbox: ((Int) -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        let point = self.convert(event.locationInWindow, from: nil)
+        let textContainerOrigin = self.textContainerOrigin
+        let locationInTextContainer = NSPoint(
+            x: point.x - textContainerOrigin.x,
+            y: point.y - textContainerOrigin.y
+        )
+        
+        guard let layoutManager = self.layoutManager, let textContainer = self.textContainer else {
+            super.mouseDown(with: event)
+            return
+        }
+        
+        let charIndex = layoutManager.characterIndex(
+            for: locationInTextContainer,
+            in: textContainer,
+            fractionOfDistanceBetweenInsertionPoints: nil
+        )
+        
+        if charIndex < (self.textStorage?.length ?? 0) {
+            if let value = self.textStorage?.attribute(.notebloatListMarker, at: charIndex, effectiveRange: nil) as? String,
+               value == "☑" || value == "☐" {
+                
+                let glyphIndex = layoutManager.glyphIndexForCharacter(at: charIndex)
+                let boundingRect = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyphIndex, length: 1), in: textContainer)
+                let lineFragment = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+                
+                let hitRect = NSRect(x: boundingRect.minX - 5, y: lineFragment.minY, width: boundingRect.width + 10, height: lineFragment.height)
+                
+                if hitRect.contains(locationInTextContainer) {
+                    onToggleCheckbox?(charIndex)
+                    return
+                }
+            }
+        }
+        
+        super.mouseDown(with: event)
+    }
+}
+
 /// Plain-text editor with optional non-destructive Markdown live preview.
 /// Inactive lines are styled while selected lines always show their source.
 struct MarkdownTextEditor: NSViewRepresentable {
@@ -77,8 +120,12 @@ struct MarkdownTextEditor: NSViewRepresentable {
         layoutManager.addTextContainer(textContainer)
         textStorage.addLayoutManager(layoutManager)
 
-        let textView = NSTextView(frame: .zero, textContainer: textContainer)
-        textView.delegate = context.coordinator
+        let textView = MarkdownTextView(frame: .zero, textContainer: textContainer)
+        let coordinator = context.coordinator
+        textView.onToggleCheckbox = { [weak coordinator] charIndex in
+            coordinator?.toggleCheckbox(at: charIndex)
+        }
+        textView.delegate = coordinator
         textView.string = text
         textView.isRichText = false
         textView.allowsUndo = true
@@ -140,6 +187,30 @@ struct MarkdownTextEditor: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             refreshAppearance()
+        }
+
+        func toggleCheckbox(at charIndex: Int) {
+            guard let textView, let textStorage = textView.textStorage else { return }
+            let text = textView.string as NSString
+            let lineRange = text.lineRange(for: NSRange(location: charIndex, length: 0))
+            let line = text.substring(with: lineRange)
+            
+            let pattern = try! NSRegularExpression(pattern: "^([\\t ]*)(?:([-+*])[\\t ]+)?(\\[)([ xX]?)\\](?:[\\t ]+|$)")
+            if let match = pattern.firstMatch(in: line, range: NSRange(location: 0, length: (line as NSString).length)) {
+                let checkedRangeInLine = match.range(at: 4)
+                let isChecked = checkedRangeInLine.location != NSNotFound && (line as NSString).substring(with: checkedRangeInLine).lowercased() == "x"
+                
+                let start = match.range(at: 3).location
+                let length = (checkedRangeInLine.location != NSNotFound ? NSMaxRange(checkedRangeInLine) : NSMaxRange(match.range(at: 3))) + 1 - start
+                let rangeToReplace = NSRange(location: lineRange.location + start, length: length)
+                
+                let replacement = isChecked ? "[ ]" : "[x]"
+                
+                if textView.shouldChangeText(in: rangeToReplace, replacementString: replacement) {
+                    textStorage.replaceCharacters(in: rangeToReplace, with: replacement)
+                    textView.didChangeText()
+                }
+            }
         }
 
         func refreshAppearance() {
