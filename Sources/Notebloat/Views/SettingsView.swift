@@ -115,12 +115,8 @@ struct SettingsSheet: View {
 
                     HStack(spacing: 8) {
                         Button("Reveal in Finder", action: store.revealNotesInFinder)
-                        Menu("Export…") {
-                            Button("JSON…") { exportNotes(as: .json) }
-                            Button("Markdown…") { exportNotes(as: .markdown) }
-                        }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
+                        Button("Markdown…") { exportNotes(as: .markdown) }
+                        Button("JSON…") { exportNotes(as: .json) }
                         Button("Import…", action: importNotes)
                     }
                     .buttonStyle(.borderless)
