@@ -41,7 +41,7 @@ enum MarkdownStyler {
         pattern: "^[\\t ]*>[\\t ]?"
     )
     private static let taskPattern = try! NSRegularExpression(
-        pattern: "^([\\t ]*)([-+*])[\\t ]+\\[([ xX])\\][\\t ]+"
+        pattern: "^([\\t ]*)([-+*])[\\t ]+\\[([ xX]?)\\][\\t ]+"
     )
     private static let unorderedListPattern = try! NSRegularExpression(
         pattern: "^([\\t ]*)([-+*])[\\t ]+"
@@ -178,7 +178,8 @@ enum MarkdownStyler {
         }
 
         if let match = taskPattern.firstMatch(in: line as String, range: localRange) {
-            let checked = line.substring(with: match.range(at: 3)).lowercased() == "x"
+            let checkedRange = match.range(at: 3)
+            let checked = checkedRange.location != NSNotFound && line.substring(with: checkedRange).lowercased() == "x"
             renderListMarker(
                 match: match,
                 symbolRange: match.range(at: 2),
@@ -222,30 +223,25 @@ enum MarkdownStyler {
         textStorage: NSTextStorage,
         symbol: String
     ) {
+        // Make the entire match range invisible but keep the original font so
+        // the characters preserve their natural widths. This ensures the
+        // content text starts at its normal position after the full marker
+        // syntax (e.g., "- ", "- [x] ") and the replacement symbol has
+        // proper spacing.
+        let fullMatchRange = absolute(match.range, within: lineRange)
+        textStorage.addAttribute(
+            .foregroundColor,
+            value: NSColor.clear,
+            range: fullMatchRange
+        )
+
+        // Place the replacement symbol attribute on the marker character so
+        // the custom layout manager draws it at the correct glyph position.
         let markerRange = absolute(symbolRange, within: lineRange)
         textStorage.addAttribute(
             .notebloatListMarker,
             value: symbol,
             range: markerRange
-        )
-        textStorage.addAttribute(
-            .foregroundColor,
-            value: NSColor.clear,
-            range: markerRange
-        )
-        if symbol != "•" {
-            textStorage.addAttribute(
-                .kern,
-                value: 5,
-                range: markerRange
-            )
-        }
-
-        let hiddenStart = NSMaxRange(markerRange)
-        let matchEnd = lineRange.location + NSMaxRange(match.range)
-        hide(
-            NSRange(location: hiddenStart, length: max(0, matchEnd - hiddenStart)),
-            in: textStorage
         )
     }
 
