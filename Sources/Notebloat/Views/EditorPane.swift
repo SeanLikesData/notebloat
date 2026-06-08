@@ -4,15 +4,21 @@ import SwiftUI
 /// and when the user switches tabs, so the application is ready for typing.
 struct EditorPane: View {
     @EnvironmentObject private var store: TabStore
-    @FocusState private var editorFocused: Bool
-    let font: Font
+    @AppStorage(SettingsKey.fontSize) private var fontRaw = FontSize.medium.rawValue
+    @AppStorage(SettingsKey.markdownRendering) private var markdownRendering = false
+
+    private var fontSize: CGFloat {
+        (FontSize(rawValue: fontRaw) ?? .medium).pointSize
+    }
 
     var body: some View {
         Group {
             if let active = store.activeTab {
-                TextEditor(text: store.contentBinding(for: active.id))
-                    .font(font)
-                    .scrollContentBackground(.hidden)
+                MarkdownTextEditor(
+                    text: store.contentBinding(for: active.id),
+                    fontSize: fontSize,
+                    rendersMarkdown: markdownRendering
+                )
                     // Keep the trailing padding small so the scroll bar sits
                     // against the right edge of the editor panel instead of
                     // floating inward with the text padding.
@@ -22,9 +28,7 @@ struct EditorPane: View {
                     .background(RoundedRectangle(cornerRadius: 12).fill(NotebloatStyle.editorBackground))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(NotebloatStyle.controlStroke, lineWidth: 1))
                     .padding(10)
-                    .focused($editorFocused)
-                    .onAppear { editorFocused = true }
-                    .onChange(of: active.id) { _, _ in editorFocused = true }
+                    .id(active.id)
             } else {
                 Text("No tabs")
                     .foregroundStyle(.secondary)

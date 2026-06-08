@@ -18,6 +18,7 @@ swiftc \
     Sources/Notebloat/Models/Note.swift \
     Sources/Notebloat/Models/NoteStore.swift \
     Sources/Notebloat/Utilities/DateFormatting.swift \
+    Sources/Notebloat/Utilities/MarkdownStyler.swift \
     Tests/NotebloatModelTests.swift \
     -o "$TEST_BINARY"
 

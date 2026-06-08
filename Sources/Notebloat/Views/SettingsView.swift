@@ -12,6 +12,7 @@ struct SettingsSheet: View {
     @AppStorage(SettingsKey.fontSize) private var fontRaw = FontSize.medium.rawValue
     @AppStorage(SettingsKey.popoverSize) private var popoverRaw = PopoverSize.medium.rawValue
     @AppStorage(SettingsKey.launchAtLogin) private var launchAtLogin = false
+    @AppStorage(SettingsKey.markdownRendering) private var markdownRendering = false
 
     let onClose: () -> Void
 
@@ -73,6 +74,20 @@ struct SettingsSheet: View {
                             .onChange(of: launchAtLogin) { _, newValue in
                                 applyLaunchAtLogin(newValue)
                             }
+                    }
+                    .padding(.vertical, 8)
+                    divider
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Render Markdown")
+                            Text("Show formatting outside the selected line.")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $markdownRendering)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
                     }
                     .padding(.vertical, 8)
                 }

@@ -6,7 +6,6 @@ import AppKit
 struct ContentView: View {
     @EnvironmentObject private var store: TabStore
     @AppStorage(SettingsKey.theme) private var themeRaw = AppTheme.system.rawValue
-    @AppStorage(SettingsKey.fontSize) private var fontRaw = FontSize.medium.rawValue
     @AppStorage(SettingsKey.popoverSize) private var popoverRaw = PopoverSize.medium.rawValue
 
     @State private var showingNewTab = false
@@ -16,10 +15,6 @@ struct ContentView: View {
 
     private var popoverSize: CGSize {
         (PopoverSize(rawValue: popoverRaw) ?? .medium).dimensions
-    }
-
-    private var editorFont: Font {
-        .system(size: (FontSize(rawValue: fontRaw) ?? .medium).pointSize)
     }
 
     private var colorScheme: ColorScheme? {
@@ -37,7 +32,7 @@ struct ContentView: View {
                     onDelete: { deletingTab = $0 }
                 )
                 NotebloatStyle.divider
-                EditorPane(font: editorFont)
+                EditorPane()
                 NotebloatStyle.divider
                 BottomBar(
                     onSettings: { showingSettings = true },

@@ -29,6 +29,7 @@ The design goal is simple:
 - Light, dark, and system theme settings.
 - Small, medium, and large editor font settings.
 - Small, medium, and large popover size settings.
+- Optional Markdown live preview that keeps the selected line as raw source.
 - Create tabs from the top-right plus button next to the tab strip.
 - Rename tabs by double-clicking a tab, using the tab context menu, or using the actions menu.
 - Drag tabs to reorder them.
@@ -155,12 +156,14 @@ Sources/Notebloat/
   Views/
     BottomBar.swift         The bottom bar with counter, save status, and actions menu
     ContentView.swift       Main popover layout and overlays
-    EditorPane.swift        Text area for the active tab
+    EditorPane.swift        Active-tab editor configuration
+    MarkdownTextEditor.swift AppKit plain-text editor with Markdown live preview
     NameDialog.swift        Create, rename, and delete confirmation cards
     SettingsView.swift      Settings panel
     TabBarView.swift        Top tab strip and overflow menu
   Utilities/
     DateFormatting.swift    TextStats character and word counter
+    MarkdownStyler.swift    Non-destructive Markdown display attributes
 Tests/
   NotebloatModelTests.swift Lightweight model tests compiled by scripts/test-models.sh
 scripts/

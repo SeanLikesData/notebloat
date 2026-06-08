@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 @main
 enum NotebloatModelTests {
@@ -11,6 +12,7 @@ enum NotebloatModelTests {
         try await testCorruptFileRecovery()
         try await testBackupRetention()
         try await testTextStats()
+        try await testMarkdownStyling()
         print("All Notebloat model tests passed.")
     }
 
@@ -168,6 +170,48 @@ enum NotebloatModelTests {
         expect(TextStats.summary(for: "") == "0 chars • 0 words", "empty text stats")
         expect(TextStats.summary(for: "hello world") == "11 chars • 2 words", "word count stats")
         expect(TextStats.summary(for: "a") == "1 char • 1 word", "singular labels")
+    }
+
+    private static func testMarkdownStyling() async throws {
+        let source = "# Heading\n**Bold** text"
+        let storage = NSTextStorage(string: source)
+        let layoutManager = NSLayoutManager()
+        storage.addLayoutManager(layoutManager)
+        let baseFont = NSFont.systemFont(ofSize: 14)
+        let activeLine = (source as NSString).lineRange(
+            for: NSRange(location: (source as NSString).range(of: "**Bold**").location, length: 0)
+        )
+
+        MarkdownStyler.apply(
+            to: layoutManager,
+            text: source as NSString,
+            baseFont: baseFont,
+            activeLineRanges: [activeLine],
+            enabled: true
+        )
+
+        let headingMarkerFont = layoutManager.temporaryAttribute(
+            .font,
+            atCharacterIndex: 0,
+            effectiveRange: nil
+        ) as? NSFont
+        let headingFont = layoutManager.temporaryAttribute(
+            .font,
+            atCharacterIndex: 2,
+            effectiveRange: nil
+        ) as? NSFont
+        let activeMarkerFont = layoutManager.temporaryAttribute(
+            .font,
+            atCharacterIndex: activeLine.location,
+            effectiveRange: nil
+        ) as? NSFont
+
+        expect(headingMarkerFont?.pointSize == 0.1, "inactive Markdown markers are hidden")
+        expect(
+            headingFont.map { NSFontManager.shared.traits(of: $0).contains(.boldFontMask) } == true,
+            "inactive Markdown headings are styled"
+        )
+        expect(activeMarkerFont?.pointSize == baseFont.pointSize, "active line shows raw Markdown")
     }
 
     private static func freshTemporaryDirectory(named name: String) throws -> URL {

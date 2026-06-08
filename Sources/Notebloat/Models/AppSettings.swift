@@ -7,6 +7,7 @@ enum SettingsKey {
     static let popoverSize = "popoverSize"
     static let pinned = "pinned"
     static let launchAtLogin = "launchAtLogin"
+    static let markdownRendering = "markdownRendering"
 }
 
 /// Color scheme choice (Settings).
