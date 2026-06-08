@@ -25,18 +25,33 @@ struct ContentView: View {
         ZStack {
             NotebloatStyle.panelMaterial
 
-            VStack(spacing: 0) {
-                TabBarView(
-                    onNewTab: { showingNewTab = true },
-                    onRename: { renamingTab = $0 },
-                    onDelete: { deletingTab = $0 }
-                )
-                NotebloatStyle.divider
-                EditorPane()
-                NotebloatStyle.divider
-                BottomBar(
-                    onSettings: { showingSettings = true }
-                )
+            if showingSettings {
+                SettingsSheet(onClose: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 1)) {
+                        showingSettings = false
+                    }
+                })
+                .transition(.move(edge: .trailing))
+                .zIndex(1)
+            } else {
+                VStack(spacing: 0) {
+                    TabBarView(
+                        onNewTab: { showingNewTab = true },
+                        onRename: { renamingTab = $0 },
+                        onDelete: { deletingTab = $0 }
+                    )
+                    NotebloatStyle.divider
+                    EditorPane()
+                    NotebloatStyle.divider
+                    BottomBar(
+                        onSettings: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 1)) {
+                                showingSettings = true
+                            }
+                        }
+                    )
+                }
+                .transition(.move(edge: .leading))
             }
 
             if let persistenceError = store.persistenceError {
@@ -90,9 +105,7 @@ struct ContentView: View {
                 )
             }
 
-            if showingSettings {
-                SettingsSheet(onClose: { showingSettings = false })
-            }
+            // Settings is now handled in the main if/else block to fill the screen
         }
         .preferredColorScheme(colorScheme)
         .frame(width: popoverSize.width, height: popoverSize.height)

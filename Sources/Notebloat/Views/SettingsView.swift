@@ -21,22 +21,32 @@ struct SettingsSheet: View {
     private let logger = Logger(subsystem: "com.notebloat.app", category: "settings")
 
     var body: some View {
-        ZStack {
-            Color.black.opacity(0.35)
-                .ignoresSafeArea()
-                .onTapGesture(perform: onClose)
-
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text("Settings").font(.headline)
-                    Spacer()
-                    Button(action: onClose) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                            .font(.system(size: 15))
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: onClose) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Back")
                     }
-                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                
+                Spacer()
+                Text("Settings")
+                    .font(.headline)
+                    .padding(.trailing, 48)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 40)
+            
+            Divider()
+            
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 20) {
 
                 section("Appearance") {
                     row("Theme", icon: "paintpalette") {
@@ -123,16 +133,15 @@ struct SettingsSheet: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                }
+                .font(.system(size: 13))
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .font(.system(size: 13))
-            .padding(20)
-            .frame(width: 380)
-            .background(RoundedRectangle(cornerRadius: 18).fill(.ultraThinMaterial))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.primary.opacity(0.15), lineWidth: 1))
-            .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 10)
-            .onAppear {
-                launchAtLogin = (SMAppService.mainApp.status == .enabled)
-            }
+        }
+        .background(Color.clear)
+        .onAppear {
+            launchAtLogin = (SMAppService.mainApp.status == .enabled)
         }
     }
 
