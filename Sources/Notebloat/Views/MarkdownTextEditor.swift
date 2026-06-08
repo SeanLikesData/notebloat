@@ -135,7 +135,10 @@ struct MarkdownTextEditor: NSViewRepresentable {
         }
 
         func refreshAppearance() {
-            guard let textView, let textStorage = textView.textStorage else { return }
+            guard let textView,
+                  let textStorage = textView.textStorage,
+                  let layoutManager = textView.layoutManager
+            else { return }
             let font = NSFont.systemFont(ofSize: parent.fontSize)
             textView.insertionPointColor = .textColor
 
@@ -151,6 +154,11 @@ struct MarkdownTextEditor: NSViewRepresentable {
                 baseFont: font,
                 activeLineRanges: activeRanges,
                 enabled: parent.rendersMarkdown
+            )
+            layoutManager.invalidateGlyphs(
+                forCharacterRange: NSRange(location: 0, length: textStorage.length),
+                changeInLength: 0,
+                actualCharacterRange: nil
             )
             textView.typingAttributes = [
                 .font: font,
