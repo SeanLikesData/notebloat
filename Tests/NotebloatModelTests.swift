@@ -261,10 +261,16 @@ enum NotebloatModelTests {
             at: (source as NSString).range(of: "- [x]").location,
             effectiveRange: nil
         ) as? String
+        let sourceMarkerColor = storage.attribute(
+            .foregroundColor,
+            at: (source as NSString).range(of: "- List").location,
+            effectiveRange: nil
+        ) as? NSColor
 
         expect(listMarker == "•", "unordered Markdown lists render a bullet")
         expect(uncheckedMarker == "☐", "unchecked Markdown tasks render a checkbox")
         expect(checkedMarker == "☑", "checked Markdown tasks render a checked checkbox")
+        expect(sourceMarkerColor?.alphaComponent == 0, "rendered lists hide the source marker")
         expect(storage.string == source, "list rendering preserves the plain-text source")
     }
 

@@ -228,6 +228,18 @@ enum MarkdownStyler {
             value: symbol,
             range: markerRange
         )
+        textStorage.addAttribute(
+            .foregroundColor,
+            value: NSColor.clear,
+            range: markerRange
+        )
+        if symbol != "•" {
+            textStorage.addAttribute(
+                .kern,
+                value: 5,
+                range: markerRange
+            )
+        }
 
         let hiddenStart = NSMaxRange(markerRange)
         let matchEnd = lineRange.location + NSMaxRange(match.range)
