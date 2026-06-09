@@ -126,13 +126,22 @@ struct ContentView: View {
 
 private struct PopoverNotch: View {
     var body: some View {
-        Triangle()
-            .fill(Color.black.opacity(0.28))
+        NotebloatStyle.panelMaterial
+            .mask(Triangle())
             .overlay(
                 Triangle()
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.28),
+                                Color.white.opacity(0.14)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
             )
-            .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
     }
 }
 
@@ -173,8 +182,8 @@ extension View {
 
 enum NotebloatStyle {
     static let panelCornerRadius: CGFloat = 18
-    static let notchWidth: CGFloat = 22
-    static let notchHeight: CGFloat = 10
+    static let notchWidth: CGFloat = 28
+    static let notchHeight: CGFloat = 12
 
     static var panelMaterial: some View {
         ZStack {

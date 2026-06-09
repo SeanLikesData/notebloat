@@ -168,7 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let buttonFrameOnScreen = buttonWindow.convertToScreen(buttonFrameInWindow)
         var origin = NSPoint(
             x: buttonFrameOnScreen.midX - (size.width / 2),
-            y: buttonFrameOnScreen.minY - size.height - menuBarGap
+            y: buttonFrameOnScreen.minY - size.height - menuBarGap + NotebloatStyle.notchHeight
         )
 
         if let screen = buttonWindow.screen ?? NSScreen.main {
