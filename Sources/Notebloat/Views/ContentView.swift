@@ -22,17 +22,6 @@ struct ContentView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            PopoverNotch()
-                .frame(width: NotebloatStyle.notchWidth, height: NotebloatStyle.notchHeight)
-
-            panelContent
-        }
-        .preferredColorScheme(colorScheme)
-        .frame(width: popoverSize.width, height: popoverSize.height + NotebloatStyle.notchHeight)
-    }
-
-    private var panelContent: some View {
         ZStack {
             NotebloatStyle.panelMaterial
 
@@ -118,32 +107,10 @@ struct ContentView: View {
 
             // Settings is now handled in the main if/else block to fill the screen
         }
+        .preferredColorScheme(colorScheme)
         .frame(width: popoverSize.width, height: popoverSize.height)
         .clipShape(RoundedRectangle(cornerRadius: NotebloatStyle.panelCornerRadius, style: .continuous))
         .overlay(NotebloatStyle.panelBorder)
-    }
-}
-
-private struct PopoverNotch: View {
-    var body: some View {
-        Triangle()
-            .fill(Color.black.opacity(0.28))
-            .overlay(
-                Triangle()
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
-    }
-}
-
-private struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.closeSubpath()
-        return path
     }
 }
 
@@ -173,8 +140,6 @@ extension View {
 
 enum NotebloatStyle {
     static let panelCornerRadius: CGFloat = 18
-    static let notchWidth: CGFloat = 22
-    static let notchHeight: CGFloat = 10
 
     static var panelMaterial: some View {
         ZStack {
