@@ -126,7 +126,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func windowSize() -> NSSize {
         let contentSize = currentPopoverSize()
-        return contentSize
+        return NSSize(
+            width: contentSize.width,
+            height: contentSize.height + NotebloatStyle.notchHeight
+        )
     }
 
     private var isPinned: Bool {
