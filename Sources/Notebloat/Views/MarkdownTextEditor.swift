@@ -65,11 +65,12 @@ struct MarkdownTextEditor: NSViewRepresentable {
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
 
+        let contentSize = scrollView.contentSize
         let textStorage = NSTextStorage()
         let layoutManager = MarkdownLayoutManager()
         let textContainer = NSTextContainer(
             containerSize: NSSize(
-                width: 0,
+                width: contentSize.width,
                 height: CGFloat.greatestFiniteMagnitude
             )
         )
@@ -77,7 +78,10 @@ struct MarkdownTextEditor: NSViewRepresentable {
         layoutManager.addTextContainer(textContainer)
         textStorage.addLayoutManager(layoutManager)
 
-        let textView = NSTextView(frame: .zero, textContainer: textContainer)
+        let textView = NSTextView(
+            frame: NSRect(origin: .zero, size: contentSize),
+            textContainer: textContainer
+        )
         textView.delegate = context.coordinator
         textView.string = text
         textView.isRichText = false
@@ -88,6 +92,15 @@ struct MarkdownTextEditor: NSViewRepresentable {
         textView.isAutomaticTextReplacementEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.textContainerInset = NSSize(width: 4, height: 2)
+        textView.minSize = NSSize(width: 0, height: contentSize.height)
+        textView.maxSize = NSSize(
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+        textView.textContainer?.containerSize = NSSize(
+            width: contentSize.width,
+            height: CGFloat.greatestFiniteMagnitude
+        )
         textView.textContainer?.widthTracksTextView = true
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false

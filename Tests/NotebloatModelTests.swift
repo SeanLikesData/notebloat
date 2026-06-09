@@ -8,12 +8,16 @@ enum NotebloatModelTests {
         try await testAddSelectRenameDeleteAndPersistence()
         try await testMoveTab()
         try await testImportExport()
+        try await testExportToNotesFileIsSafe()
+        try await testImportNormalizesUnsafeTabs()
+        try await testImportRejectsFutureVersion()
         try await testMarkdownExport()
         try await testCorruptFileRecovery()
         try await testBackupRetention()
         try await testTextStats()
         try await testMarkdownStyling()
         try await testMarkdownLists()
+        try await testLargeMarkdownStylingCompletes()
         print("All Notebloat model tests passed.")
     }
 
@@ -64,10 +68,10 @@ enum NotebloatModelTests {
             let third = store.tabs[2].id
 
             store.moveTab(first, before: third)
-            expect(store.tabs.map(\.name) == ["Work", "Docs", "Personal"], "dragging right can move a tab to the end")
+            expect(store.tabs.map(\.name) == ["Work", "Personal", "Docs"], "dragging right moves a tab before the target")
 
             store.moveTab(third, before: second)
-            expect(store.tabs.map(\.name) == ["Docs", "Work", "Personal"], "dragging left can move a tab before the target")
+            expect(store.tabs.map(\.name) == ["Docs", "Work", "Personal"], "dragging left moves a tab before the target")
         }
     }
 
@@ -90,6 +94,69 @@ enum NotebloatModelTests {
         try await MainActor.run {
             try imported.importNotes(from: exportURL)
             expect(imported.tabs.contains(where: { $0.name == "Imported" && $0.content == "hello import export" }), "import restores exported notes")
+        }
+    }
+
+    private static func testExportToNotesFileIsSafe() async throws {
+        let directory = try freshTemporaryDirectory(named: "same-file-export")
+        let store = await MainActor.run { TabStore(directoryURL: directory) }
+        let notesURL = directory.appendingPathComponent("tabs.json")
+        let before = try String(contentsOf: notesURL, encoding: .utf8)
+
+        try await MainActor.run {
+            try store.exportNotes(to: notesURL)
+        }
+
+        let after = try String(contentsOf: notesURL, encoding: .utf8)
+        expect(after == before, "exporting to the notes file does not delete notes")
+    }
+
+    private static func testImportNormalizesUnsafeTabs() async throws {
+        let directory = try freshTemporaryDirectory(named: "import-normalization")
+        let sourceURL = directory.appendingPathComponent("unsafe.json")
+        let duplicateID = UUID()
+        let json = """
+        {
+          "version": 1,
+          "activeID": "\(duplicateID.uuidString)",
+          "tabs": [
+            { "id": "\(duplicateID.uuidString)", "name": "", "content": "first" },
+            { "id": "\(duplicateID.uuidString)", "name": "Untitled", "content": "second" },
+            { "id": "\(UUID().uuidString)", "name": "Untitled", "content": "third" }
+          ]
+        }
+        """
+        try json.write(to: sourceURL, atomically: true, encoding: .utf8)
+
+        let store = await MainActor.run { TabStore(directoryURL: directory) }
+        try await MainActor.run {
+            try store.importNotes(from: sourceURL)
+            expect(store.tabs.map(\.name) == ["Untitled", "Untitled 2", "Untitled 3"], "import normalizes blank and duplicate tab names")
+            expect(Set(store.tabs.map(\.id)).count == store.tabs.count, "import regenerates duplicate tab identifiers")
+            expect(store.activeID == duplicateID, "import preserves a valid active tab identifier")
+        }
+    }
+
+    private static func testImportRejectsFutureVersion() async throws {
+        let directory = try freshTemporaryDirectory(named: "future-import")
+        let sourceURL = directory.appendingPathComponent("future.json")
+        let json = """
+        {
+          "version": 999,
+          "activeID": null,
+          "tabs": []
+        }
+        """
+        try json.write(to: sourceURL, atomically: true, encoding: .utf8)
+
+        let store = await MainActor.run { TabStore(directoryURL: directory) }
+        do {
+            try await MainActor.run {
+                try store.importNotes(from: sourceURL)
+            }
+            expect(false, "future import versions are rejected")
+        } catch {
+            expect(error.localizedDescription.contains("unsupported"), "future import version has a clear error")
         }
     }
 
@@ -272,6 +339,24 @@ enum NotebloatModelTests {
         expect(checkedMarker == "☑", "checked Markdown tasks render a checked checkbox")
         expect(sourceMarkerColor?.alphaComponent == 0, "rendered lists hide the source marker")
         expect(storage.string == source, "list rendering preserves the plain-text source")
+    }
+
+    private static func testLargeMarkdownStylingCompletes() async throws {
+        let line = "# Heading **bold** _italic_ [link](https://example.com) - [x] task\n"
+        let source = String(repeating: line, count: 2_000)
+        let storage = NSTextStorage(string: source)
+        let baseFont = NSFont.systemFont(ofSize: 14)
+        let start = Date()
+
+        MarkdownStyler.apply(
+            to: storage,
+            baseFont: baseFont,
+            activeLineRanges: [],
+            enabled: true
+        )
+
+        expect(storage.string == source, "large Markdown styling preserves text")
+        expect(Date().timeIntervalSince(start) < 5, "large Markdown styling completes in a reasonable time")
     }
 
     private static func colorsMatch(

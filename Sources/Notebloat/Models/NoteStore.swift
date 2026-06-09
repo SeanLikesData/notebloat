@@ -36,6 +36,23 @@ final class TabStore: ObservableObject {
         var activeID: UUID?
     }
 
+    private enum ImportError: LocalizedError {
+        case unsupportedVersion(Int)
+        case fileTooLarge(Int64)
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedVersion(let version):
+                "This export uses unsupported data version \(version)."
+            case .fileTooLarge(let byteCount):
+                "This export is too large to import safely: \(byteCount) bytes."
+            }
+        }
+    }
+
+    private static let currentPersistenceVersion = 1
+    private static let maximumImportByteCount: Int64 = 10 * 1024 * 1024
+
     convenience init() {
         let fileManager = FileManager.default
         let directory: URL
@@ -174,7 +191,8 @@ final class TabStore: ObservableObject {
         else { return }
 
         let draggedTab = tabs.remove(at: sourceIndex)
-        let insertionIndex = min(targetIndex, tabs.count)
+        let adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+        let insertionIndex = max(0, min(adjustedTargetIndex, tabs.count))
         tabs.insert(draggedTab, at: insertionIndex)
         saveNow()
     }
@@ -200,9 +218,19 @@ final class TabStore: ObservableObject {
     }
 
     func importNotes(from sourceURL: URL) throws {
+        let byteCount = try sourceURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        if byteCount > Self.maximumImportByteCount {
+            throw ImportError.fileTooLarge(Int64(byteCount))
+        }
+
         let data = try Data(contentsOf: sourceURL)
         let decoded = try JSONDecoder().decode(Persisted.self, from: data)
-        tabs = decoded.tabs.isEmpty ? [TabItem(name: "Notes")] : decoded.tabs
+        guard decoded.version <= Self.currentPersistenceVersion else {
+            throw ImportError.unsupportedVersion(decoded.version)
+        }
+
+        let normalized = normalizeImportedTabs(decoded.tabs)
+        tabs = normalized.isEmpty ? [TabItem(name: "Notes")] : normalized
         activeID = decoded.activeID
         if activeID == nil || !tabs.contains(where: { $0.id == activeID }) {
             activeID = tabs.first?.id
@@ -323,12 +351,38 @@ final class TabStore: ObservableObject {
         }
     }
 
+    private func normalizeImportedTabs(_ importedTabs: [TabItem]) -> [TabItem] {
+        var usedIDs = Set<UUID>()
+        var usedNames = Set<String>()
+
+        return importedTabs.map { tab in
+            let id: UUID
+            if usedIDs.contains(tab.id) {
+                id = UUID()
+            } else {
+                id = tab.id
+            }
+            usedIDs.insert(id)
+
+            let trimmedName = tab.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let baseName = trimmedName.isEmpty ? "Untitled" : trimmedName
+            let name = uniqueName(for: baseName, existingNames: usedNames)
+            usedNames.insert(name)
+
+            return TabItem(id: id, name: name, content: tab.content)
+        }
+    }
+
     private func uniqueName(for proposedName: String, excluding excludedID: UUID? = nil) -> String {
         let existingNames = Set(
             tabs
                 .filter { $0.id != excludedID }
                 .map(\.name)
         )
+        return uniqueName(for: proposedName, existingNames: existingNames)
+    }
+
+    private func uniqueName(for proposedName: String, existingNames: Set<String>) -> String {
         guard existingNames.contains(proposedName) else { return proposedName }
 
         var suffix = 2
@@ -341,9 +395,21 @@ final class TabStore: ObservableObject {
 
 private extension FileManager {
     func copyItemReplacingExisting(from sourceURL: URL, to destinationURL: URL) throws {
-        if fileExists(atPath: destinationURL.path) {
-            try removeItem(at: destinationURL)
+        let source = sourceURL.standardizedFileURL
+        let destination = destinationURL.standardizedFileURL
+        if fileExists(atPath: destination.path), contentsEqual(atPath: source.path, andPath: destination.path) {
+            return
         }
-        try copyItem(at: sourceURL, to: destinationURL)
+
+        let temporaryURL = destination
+            .deletingLastPathComponent()
+            .appendingPathComponent(".\(destination.lastPathComponent).tmp-\(UUID().uuidString)")
+        defer { try? removeItem(at: temporaryURL) }
+
+        try copyItem(at: source, to: temporaryURL)
+        if fileExists(atPath: destination.path) {
+            try removeItem(at: destination)
+        }
+        try moveItem(at: temporaryURL, to: destination)
     }
 }
