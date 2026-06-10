@@ -1,12 +1,12 @@
 # Notebloat
 
-Notebloat is a small macOS menu bar application for fast, local notes.
+Notebloat is a fast local scratchpad for the macOS menu bar.
 
-It gives you named tabs and one plain text editor per tab. Click the notepad icon in the menu bar, type, and close the popover when you are done. Notes save automatically to a local JSON file.
+It gives you named tabs, one plain text editor per tab, optional Markdown rendering, and automatic local saving. Click the notepad icon in the menu bar, type, and close the popover when you are done.
 
 ![Notebloat main popover](design/main-popover.png)
 
-## Why this exists
+## Why This Exists
 
 Many note applications are larger than the job requires. Notebloat is for temporary notes, quick lists, copied snippets, meeting fragments, and anything else that should be one click away without opening a full notes application.
 
@@ -20,7 +20,7 @@ The design goal is simple:
 ## Features
 
 - macOS menu bar application with no Dock icon.
-- Named tabs across the top of the popover. Tabs wrap onto additional rows when there are too many to fit.
+- Named tabs across the top of the popover. The tab strip wraps onto additional rows when there are too many tabs to fit.
 - One free-form text editor per tab.
 - Automatic local saving while typing.
 - Save status indicator in the bottom bar.
@@ -31,8 +31,9 @@ The design goal is simple:
 - Small, medium, and large popover size settings.
 - Optional Markdown live preview with colored headings, rendered list markers,
   task checkboxes, and raw source on the selected line.
-- Create tabs from the top-right plus button next to the tab strip.
+- Create tabs from the plus button in the tab strip.
 - Rename tabs by double-clicking a tab or using the tab context menu.
+- Duplicate tabs from the tab context menu.
 - Drag tabs to reorder them.
 - Create, rename, delete, and switch tabs from the user interface.
 - Duplicate tab names are made unique automatically.
@@ -53,13 +54,17 @@ The design goal is simple:
 
 ![New tab dialog](design/new-tab-dialog.png)
 
+### Settings
+
+![Settings](design/settings.png)
+
 ## Requirements
 
 - macOS 14 Sonoma or newer.
 - Swift 5.9 or newer.
 - Xcode Command Line Tools are enough for local development.
 
-## Build and run
+## Build and Run
 
 From the repository root:
 
@@ -96,7 +101,7 @@ Create a release zip:
 
 The smoke test verifies that the application bundle is assembled and that `LSUIElement` is enabled.
 
-## Data storage
+## Data Storage
 
 Notebloat stores notes locally. It does not sync notes to any service.
 
@@ -132,7 +137,7 @@ Notebloat is local-first.
 - There is no analytics system.
 - Local notes are not encrypted by Notebloat. Use FileVault if you need disk-level encryption.
 
-## Keyboard shortcuts
+## Keyboard Shortcuts
 
 | Shortcut | Action |
 | --- | --- |
@@ -141,7 +146,7 @@ Notebloat is local-first.
 | Command-Q | Quit Notebloat |
 | Escape | Cancel dialogs that use the standard cancel action |
 
-## Project layout
+## Project Layout
 
 ```text
 Sources/Notebloat/
@@ -157,7 +162,7 @@ Sources/Notebloat/
     MarkdownTextEditor.swift AppKit plain-text editor with Markdown live preview
     NameDialog.swift        Create, rename, and delete confirmation cards
     SettingsView.swift      Settings panel
-    TabBarView.swift        Top tab strip and overflow menu
+    TabBarView.swift        Top tab strip, tab context menu, and drag reordering
   Utilities/
     DateFormatting.swift    TextStats character and word counter
     MarkdownStyler.swift    Non-destructive Markdown display attributes
@@ -169,7 +174,7 @@ scripts/
   test-models.sh            Compiles and runs model tests without Swift Package Manager
 ```
 
-## Implementation notes
+## Implementation Notes
 
 Notebloat uses AppKit for the menu bar item and popover lifecycle. The popover content itself is SwiftUI.
 
@@ -177,7 +182,7 @@ This split is intentional. SwiftUI `MenuBarExtra` was less reliable in this loca
 
 Persistence is handled by `TabStore`. The store keeps the active tab, the tab list, and all tab content. It writes a versioned JSON file to Application Support. Text edits are saved with a short debounce so normal typing does not write the full file on every keystroke.
 
-## Known limitations
+## Known Limitations
 
 - The local build uses ad-hoc signing.
 - Launch at login works reliably for signed installed builds. macOS may reject it for local ad-hoc builds.
@@ -185,14 +190,13 @@ Persistence is handled by `TabStore`. The store keeps the active tab, the tab li
 - There is no rich text support.
 - A distributable release should use Developer ID signing and notarization.
 
-## Roadmap ideas
+## Roadmap Ideas
 
-- Markdown export.
 - Optional global keyboard shortcut to open the popover.
 - Search across tabs.
 - Encrypted local storage option.
 - Signed and notarized release build.
 
-## Repository status
+## Repository Status
 
-This is an early working application. The core local notes workflow works, but the release packaging path is not complete yet.
+This is an early working application. The core local notes workflow works, and release packaging is still basic.
